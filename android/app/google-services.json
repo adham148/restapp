@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "481639661711",
+    "project_id": "rest-fd31a",
+    "storage_bucket": "rest-fd31a.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:481639661711:android:1db5abd9b311f63bd6b0fa",
+        "android_client_info": {
+          "package_name": "com.example.breakapp"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCBqRyW64WRiQO6IYD6HtMvTlGBTF8fVZw"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
