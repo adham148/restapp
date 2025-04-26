@@ -76,18 +76,18 @@ Future<bool> onIosBackground(ServiceInstance service) async {
 @pragma('vm:entry-point')
 void onStart(ServiceInstance service) async {
   DartPluginRegistrant.ensureInitialized();
-  
+
   // ضمان أن الخدمة تعمل كعملية معزولة في الخلفية
   if (service is AndroidServiceInstance) {
     service.on('setAsForeground').listen((event) {
       service.setAsForegroundService();
     });
-    
+
     service.on('setAsBackground').listen((event) {
       service.setAsBackgroundService();
     });
   }
-  
+
   service.on('stopService').listen((event) {
     service.stopSelf();
   });
@@ -95,7 +95,7 @@ void onStart(ServiceInstance service) async {
   // الاستماع لأوامر بدء رفع فيديو
   service.on('startUpload').listen((eventData) async {
     final Map<String, dynamic> data = Map<String, dynamic>.from(eventData!);
-    
+
     // تحديث حالة الإشعار
     if (service is AndroidServiceInstance) {
       service.setForegroundNotificationInfo(
@@ -118,12 +118,14 @@ void onStart(ServiceInstance service) async {
         'video': await MultipartFile.fromFile(
           videoPath,
           filename: File(videoPath).path.split('/').last,
-          contentType: MediaType.parse(lookupMimeType(videoPath) ?? 'video/mp4'),
+          contentType:
+              MediaType.parse(lookupMimeType(videoPath) ?? 'video/mp4'),
         ),
         'thumbnail': await MultipartFile.fromFile(
           thumbnailPath,
           filename: File(thumbnailPath).path.split('/').last,
-          contentType: MediaType.parse(lookupMimeType(thumbnailPath) ?? 'image/jpeg'),
+          contentType:
+              MediaType.parse(lookupMimeType(thumbnailPath) ?? 'image/jpeg'),
         ),
       });
 
@@ -134,7 +136,7 @@ void onStart(ServiceInstance service) async {
         onSendProgress: (sent, total) {
           final progress = sent / total;
           final percentage = (progress * 100).toStringAsFixed(1);
-          
+
           // تحديث حالة الإشعار مع التقدم
           if (service is AndroidServiceInstance) {
             service.setForegroundNotificationInfo(
@@ -142,7 +144,7 @@ void onStart(ServiceInstance service) async {
               content: 'تم رفع $percentage%',
             );
           }
-          
+
           // إرسال التقدم إلى التطبيق الرئيسي
           service.invoke('uploadProgress', {
             'progress': progress,
@@ -157,7 +159,7 @@ void onStart(ServiceInstance service) async {
         'message': 'تم رفع الفيديو بنجاح',
         'id': data['id'],
       });
-      
+
       // تحديث الإشعار بنجاح العملية
       if (service is AndroidServiceInstance) {
         service.setForegroundNotificationInfo(
@@ -165,18 +167,17 @@ void onStart(ServiceInstance service) async {
           content: 'تم رفع الفيديو بنجاح',
         );
       }
-      
+
       // إنهاء الخدمة بعد فترة صغيرة
       await Future.delayed(const Duration(seconds: 3));
       service.stopSelf();
-      
     } catch (e) {
       // إعلام التطبيق بوجود خطأ
       service.invoke('uploadError', {
         'error': e.toString(),
         'id': data['id'],
       });
-      
+
       // تحديث الإشعار بحدوث خطأ
       if (service is AndroidServiceInstance) {
         service.setForegroundNotificationInfo(
@@ -184,7 +185,7 @@ void onStart(ServiceInstance service) async {
           content: 'فشل رفع الفيديو: $e',
         );
       }
-      
+
       // إنهاء الخدمة بعد فترة صغيرة
       await Future.delayed(const Duration(seconds: 3));
       service.stopSelf();
@@ -226,23 +227,24 @@ class _VideoManagementScreenState extends State<VideoManagementScreen> {
 
   Future<void> _initializeBackgroundService() async {
     await initializeService();
-    
+
     // تكوين إعدادات الإشعارات المحلية
     const AndroidInitializationSettings initializationSettingsAndroid =
         AndroidInitializationSettings('@mipmap/ic_launcher');
-    
+
     final DarwinInitializationSettings initializationSettingsIOS =
         DarwinInitializationSettings(
       requestSoundPermission: false,
       requestBadgePermission: false,
       requestAlertPermission: false,
     );
-    
-    final InitializationSettings initializationSettings = InitializationSettings(
+
+    final InitializationSettings initializationSettings =
+        InitializationSettings(
       android: initializationSettingsAndroid,
       iOS: initializationSettingsIOS,
     );
-    
+
     await flutterLocalNotificationsPlugin.initialize(initializationSettings);
   }
 
@@ -252,11 +254,12 @@ class _VideoManagementScreenState extends State<VideoManagementScreen> {
       if (data != null && mounted) {
         final id = data['id'];
         final progress = data['progress'] as double;
-        
+
         setState(() {
           if (uploadTasks.containsKey(id)) {
             uploadTasks[id]!.progress = progress;
-            uploadTasks[id]!.status = 'جاري الرفع: ${(progress * 100).toStringAsFixed(1)}%';
+            uploadTasks[id]!.status =
+                'جاري الرفع: ${(progress * 100).toStringAsFixed(1)}%';
           }
         });
       }
@@ -268,14 +271,14 @@ class _VideoManagementScreenState extends State<VideoManagementScreen> {
         final id = data['id'];
         final success = data['success'] as bool;
         final message = data['message'] as String;
-        
+
         setState(() {
           if (uploadTasks.containsKey(id)) {
             uploadTasks[id]!.isCompleted = true;
             uploadTasks[id]!.status = message;
           }
         });
-        
+
         _showSuccessSnackbar(message);
         _fetchVideos();
       }
@@ -286,14 +289,14 @@ class _VideoManagementScreenState extends State<VideoManagementScreen> {
       if (data != null && mounted) {
         final id = data['id'];
         final error = data['error'] as String;
-        
+
         setState(() {
           if (uploadTasks.containsKey(id)) {
             uploadTasks[id]!.hasError = true;
             uploadTasks[id]!.status = 'حدث خطأ: $error';
           }
         });
-        
+
         _showErrorSnackbar('حدث خطأ أثناء رفع الفيديو: $error');
       }
     });
@@ -303,7 +306,8 @@ class _VideoManagementScreenState extends State<VideoManagementScreen> {
     setState(() => isLoading = true);
     try {
       final dio = Dio();
-      final response = await dio.get('https://backend-q811.onrender.com/videos/all-videos');
+      final response =
+          await dio.get('https://backend-q811.onrender.com/videos/all-videos');
       if (response.statusCode == 200) {
         setState(() {
           videos = response.data['videos'];
@@ -322,7 +326,8 @@ class _VideoManagementScreenState extends State<VideoManagementScreen> {
   Future<void> _fetchCategories() async {
     try {
       final dio = Dio();
-      final response = await dio.get('https://backend-q811.onrender.com/videos/leaf-categories');
+      final response = await dio
+          .get('https://backend-q811.onrender.com/videos/leaf-categories');
       if (response.statusCode == 200) {
         setState(() => categories = response.data['leafCategories']);
       } else {
@@ -333,70 +338,72 @@ class _VideoManagementScreenState extends State<VideoManagementScreen> {
     }
   }
 
- Future<void> _searchVideos(String query) async {
-  print('بدء البحث عن: $query');
+  Future<void> _searchVideos(String query) async {
+    print('بدء البحث عن: $query');
 
-  if (query.isEmpty) {
-    setState(() {
-      filteredVideos = List.from(videos);
-      isSearching = false;
-    });
-    return;
-  }
-
-  setState(() {
-    isLoading = true;
-    isSearching = true;
-  });
-
-  try {
-    final dio = Dio();
-    final response = await dio.get(
-      'https://backend-q811.onrender.com/videos/search',
-      queryParameters: {
-        'type': 'video',
-        'query': query,
-      },
-    );
-
-    print('تم استلام الرد، حالة HTTP: ${response.statusCode}');
-    print('بيانات الرد: ${response.data}');
-
-    if (response.statusCode == 200) {
-      // هنا يجب التحقق من هيكل البيانات القادمة
-      // إذا كانت البيانات مباشرة في response.data (كقائمة)
-      if (response.data is List) {
-        setState(() {
-          filteredVideos = response.data;
-        });
-      } 
-      // إذا كانت البيانات داخل حقل 'videos'
-      else if (response.data['videos'] is List) {
-        setState(() {
-          filteredVideos = response.data['videos'];
-        });
-      } 
-      // إذا لم تكن البيانات متوقعة
-      else {
-        throw Exception('هيكل البيانات غير متوقع');
-      }
-    } else {
-      throw Exception('فشل البحث: ${response.statusCode}');
+    if (query.isEmpty) {
+      setState(() {
+        filteredVideos = List.from(videos);
+        isSearching = false;
+      });
+      return;
     }
-  } catch (e) {
-    print('حدث خطأ أثناء البحث: $e');
-    debugPrint('تفاصيل الخطأ: $e', wrapWidth: 1024);
-    _showErrorSnackbar('حدث خطأ أثناء البحث');
+
     setState(() {
-      filteredVideos = [];
+      isLoading = true;
+      isSearching = true;
     });
-  } finally {
-    setState(() => isLoading = false);
+
+    try {
+      final dio = Dio();
+      final response = await dio.get(
+        'https://backend-q811.onrender.com/videos/search',
+        queryParameters: {
+          'type': 'video',
+          'query': query,
+        },
+      );
+
+      print('تم استلام الرد، حالة HTTP: ${response.statusCode}');
+      print('بيانات الرد: ${response.data}');
+
+      if (response.statusCode == 200) {
+        // هنا يجب التحقق من هيكل البيانات القادمة
+        // إذا كانت البيانات مباشرة في response.data (كقائمة)
+        if (response.data is List) {
+          setState(() {
+            filteredVideos = response.data;
+          });
+        }
+        // إذا كانت البيانات داخل حقل 'videos'
+        else if (response.data['videos'] is List) {
+          setState(() {
+            filteredVideos = response.data['videos'];
+          });
+        }
+        // إذا لم تكن البيانات متوقعة
+        else {
+          throw Exception('هيكل البيانات غير متوقع');
+        }
+      } else {
+        throw Exception('فشل البحث: ${response.statusCode}');
+      }
+    } catch (e) {
+      print('حدث خطأ أثناء البحث: $e');
+      debugPrint('تفاصيل الخطأ: $e', wrapWidth: 1024);
+      _showErrorSnackbar('حدث خطأ أثناء البحث');
+      setState(() {
+        filteredVideos = [];
+      });
+    } finally {
+      setState(() => isLoading = false);
+    }
   }
-}
+
   Future<void> _pickVideo() async {
     try {
-      final pickedFile = await ImagePicker().pickVideo(source: ImageSource.gallery);
+      final pickedFile =
+          await ImagePicker().pickVideo(source: ImageSource.gallery);
       if (pickedFile != null) {
         setState(() {
           _videoFile = File(pickedFile.path);
@@ -410,7 +417,8 @@ class _VideoManagementScreenState extends State<VideoManagementScreen> {
 
   Future<void> _pickThumbnail() async {
     try {
-      final pickedFile = await ImagePicker().pickImage(source: ImageSource.gallery);
+      final pickedFile =
+          await ImagePicker().pickImage(source: ImageSource.gallery);
       if (pickedFile != null) {
         setState(() {
           _thumbnailFile = File(pickedFile.path);
@@ -431,11 +439,13 @@ class _VideoManagementScreenState extends State<VideoManagementScreen> {
     }
 
     // نسخ ملف الفيديو
-    final videoTargetPath = '${uploadDir.path}/${DateTime.now().millisecondsSinceEpoch}_video${_videoFile!.path.split('.').last}';
+    final videoTargetPath =
+        '${uploadDir.path}/${DateTime.now().millisecondsSinceEpoch}_video${_videoFile!.path.split('.').last}';
     await _videoFile!.copy(videoTargetPath);
 
     // نسخ ملف الصورة المصغرة
-    final thumbnailTargetPath = '${uploadDir.path}/${DateTime.now().millisecondsSinceEpoch}_thumbnail${_thumbnailFile!.path.split('.').last}';
+    final thumbnailTargetPath =
+        '${uploadDir.path}/${DateTime.now().millisecondsSinceEpoch}_thumbnail${_thumbnailFile!.path.split('.').last}';
     await _thumbnailFile!.copy(thumbnailTargetPath);
 
     return {
@@ -449,17 +459,17 @@ class _VideoManagementScreenState extends State<VideoManagementScreen> {
       _showErrorSnackbar('الرجاء إدخال عنوان الفيديو');
       return;
     }
-    
+
     if (_selectedCategoryId == null) {
       _showErrorSnackbar('الرجاء اختيار قسم الفيديو');
       return;
     }
-    
+
     if (_videoFile == null) {
       _showErrorSnackbar('الرجاء اختيار ملف الفيديو');
       return;
     }
-    
+
     if (_thumbnailFile == null) {
       _showErrorSnackbar('الرجاء اختيار صورة مصغرة للفيديو');
       return;
@@ -468,10 +478,11 @@ class _VideoManagementScreenState extends State<VideoManagementScreen> {
     try {
       // تحضير معرّف فريد للمهمة
       final taskId = DateTime.now().millisecondsSinceEpoch.toString();
-      
+
       // نسخ الملفات إلى مجلد التطبيق لاستخدامها من الخدمة الخلفية
-      final Map<String, String> paths = await _prepareFilesForBackgroundUpload();
-      
+      final Map<String, String> paths =
+          await _prepareFilesForBackgroundUpload();
+
       // إنشاء كائن مهمة الرفع وإضافته إلى القائمة
       setState(() {
         uploadTasks[taskId] = UploadTask(
@@ -485,7 +496,7 @@ class _VideoManagementScreenState extends State<VideoManagementScreen> {
       // بدء الخدمة الخلفية وإرسال معلومات الرفع
       final service = FlutterBackgroundService();
       await service.startService();
-      
+
       service.invoke('startUpload', {
         'id': taskId,
         'videoPath': paths['videoPath'],
@@ -496,10 +507,9 @@ class _VideoManagementScreenState extends State<VideoManagementScreen> {
 
       // مسح النموذج
       _clearForm();
-      
+
       // إظهار رسالة للمستخدم
       _showSuccessSnackbar('بدأت عملية رفع الفيديو في الخلفية');
-      
     } catch (e) {
       _showErrorSnackbar('حدث خطأ أثناء بدء عملية الرفع: $e');
     }
@@ -509,8 +519,9 @@ class _VideoManagementScreenState extends State<VideoManagementScreen> {
     try {
       setState(() => isLoading = true);
       final dio = Dio();
-      final response = await dio.delete('https://backend-q811.onrender.com/videos/video/$videoId');
-      
+      final response = await dio
+          .delete('https://backend-q811.onrender.com/videos/video/$videoId');
+
       if (response.statusCode == 200) {
         _showSuccessSnackbar('تم حذف الفيديو بنجاح');
         _fetchVideos();
@@ -525,15 +536,16 @@ class _VideoManagementScreenState extends State<VideoManagementScreen> {
   }
 
   // وظيفة جديدة لتعديل الفيديو
-  Future<void> _updateVideo(String videoId, String title, File? thumbnailFile) async {
+  Future<void> _updateVideo(
+      String videoId, String title, File? thumbnailFile) async {
     try {
       setState(() => isLoading = true);
       final dio = Dio();
-      
+
       // إنشاء FormData لطلب التحديث
       final formData = FormData();
       formData.fields.add(MapEntry('title', title));
-      
+
       // إضافة الصورة المصغرة الجديدة إذا تم تحديدها
       if (thumbnailFile != null) {
         formData.files.add(
@@ -542,18 +554,19 @@ class _VideoManagementScreenState extends State<VideoManagementScreen> {
             await MultipartFile.fromFile(
               thumbnailFile.path,
               filename: thumbnailFile.path.split('/').last,
-              contentType: MediaType.parse(lookupMimeType(thumbnailFile.path) ?? 'image/jpeg'),
+              contentType: MediaType.parse(
+                  lookupMimeType(thumbnailFile.path) ?? 'image/jpeg'),
             ),
           ),
         );
       }
-      
+
       // إرسال طلب التحديث
       final response = await dio.put(
         'https://backend-q811.onrender.com/videos/video/$videoId',
         data: formData,
       );
-      
+
       if (response.statusCode == 200) {
         _showSuccessSnackbar('تم تحديث الفيديو بنجاح');
         _fetchVideos();
@@ -577,40 +590,39 @@ class _VideoManagementScreenState extends State<VideoManagementScreen> {
   }
 
   void _showSuccessSnackbar(String message) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(message),
-        backgroundColor: Colors.green,
-      )
-    );
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+      content: Text(message),
+      backgroundColor: Colors.green,
+    ));
   }
 
   void _showErrorSnackbar(String message) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(message),
-        backgroundColor: Colors.red,
-      )
-    );
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+      content: Text(message),
+      backgroundColor: Colors.red,
+    ));
   }
 
   // دالة لإظهار مربع حوار تعديل الفيديو
-  void _showEditDialog(dynamic video) {
-    final editTitleController = TextEditingController(text: video['title']);
-    File? newThumbnail;
-    
-    showDialog(
-      context: context,
-      builder: (context) => StatefulBuilder(
-        builder: (context, setStateDialog) {
-          return AlertDialog(
-            backgroundColor: kCardColor,
-            title: Text(
-              'تعديل الفيديو',
-              style: TextStyle(color: kTextColor),
-              textAlign: TextAlign.center,
-            ),
-            content: SingleChildScrollView(
+ void _showEditDialog(dynamic video) {
+  final editTitleController = TextEditingController(text: video['title']);
+  File? newThumbnail;
+  String? currentThumbnailUrl = video['thumbnail'];
+
+  showDialog(
+    context: context,
+    builder: (context) => StatefulBuilder(
+      builder: (context, setStateDialog) {
+        return AlertDialog(
+          backgroundColor: kCardColor,
+          title: Text(
+            'تعديل الفيديو',
+            style: TextStyle(color: kTextColor),
+            textAlign: TextAlign.center,
+          ),
+          content: Container(
+            width: double.maxFinite, // تحديد عرض ثابت للمحتوى
+            child: SingleChildScrollView(
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
@@ -632,28 +644,50 @@ class _VideoManagementScreenState extends State<VideoManagementScreen> {
                   SizedBox(height: 20),
                   
                   // عرض الصورة المصغرة الحالية
-                  Text(
-                    'الصورة المصغرة الحالية:',
-                    style: TextStyle(color: kSecondaryTextColor),
-                  ),
-                  SizedBox(height: 8),
-                  ClipRRect(
-                    borderRadius: BorderRadius.circular(8),
-                    child: Image.network(
-                      video['thumbnail'],
-                      height: 120,
-                      width: double.infinity,
-                      fit: BoxFit.cover,
-                      errorBuilder: (context, error, stackTrace) => Container(
-                        height: 120,
-                        color: Colors.grey[800],
-                        child: Icon(Icons.broken_image, color: kTextColor),
-                      ),
+                  if (currentThumbnailUrl != null && currentThumbnailUrl.isNotEmpty)
+                    Column(
+                      children: [
+                        Text(
+                          'الصورة المصغرة الحالية:',
+                          style: TextStyle(color: kSecondaryTextColor),
+                        ),
+                        SizedBox(height: 8),
+                        Container(
+                          height: 120,
+                          width: double.infinity,
+                          decoration: BoxDecoration(
+                            color: Colors.grey[800],
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: ClipRRect(
+                            borderRadius: BorderRadius.circular(8),
+                            child: Image.network(
+                              currentThumbnailUrl,
+                              height: 120,
+                              width: double.infinity,
+                              fit: BoxFit.cover,
+                              loadingBuilder: (context, child, loadingProgress) {
+                                if (loadingProgress == null) return child;
+                                return Center(
+                                  child: CircularProgressIndicator(
+                                    valueColor: AlwaysStoppedAnimation<Color>(kSecondaryColor),
+                                    value: loadingProgress.expectedTotalBytes != null
+                                        ? loadingProgress.cumulativeBytesLoaded / loadingProgress.expectedTotalBytes!
+                                        : null,
+                                  ),
+                                );
+                              },
+                              errorBuilder: (context, error, stackTrace) => Center(
+                                child: Icon(Icons.broken_image, color: kTextColor),
+                              ),
+                            ),
+                          ),
+                        ),
+                        SizedBox(height: 15),
+                      ],
                     ),
-                  ),
-                  SizedBox(height: 15),
                   
-                  // زر اختيار صورة مصغرة جديدة
+                  // عرض الصورة المصغرة الجديدة إذا تم اختيارها
                   if (newThumbnail != null)
                     Column(
                       children: [
@@ -662,23 +696,31 @@ class _VideoManagementScreenState extends State<VideoManagementScreen> {
                           style: TextStyle(color: kSecondaryTextColor),
                         ),
                         SizedBox(height: 8),
-                        ClipRRect(
-                          borderRadius: BorderRadius.circular(8),
-                          child: Image.file(
-  _thumbnailFile!,
-  height: 120,
-  width: double.infinity,
-  fit: BoxFit.cover,
-  errorBuilder: (context, error, stackTrace) => Container(
-    height: 120,
-    color: Colors.grey[800],
-    child: Icon(Icons.broken_image, color: kTextColor),
-  ),
-)),
+                        Container(
+                          height: 120,
+                          width: double.infinity,
+                          decoration: BoxDecoration(
+                            color: Colors.grey[800],
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: ClipRRect(
+                            borderRadius: BorderRadius.circular(8),
+                            child: Image.file(
+                              newThumbnail!,
+                              height: 120,
+                              width: double.infinity,
+                              fit: BoxFit.cover,
+                              errorBuilder: (context, error, stackTrace) => Center(
+                                child: Icon(Icons.broken_image, color: kTextColor),
+                              ),
+                            ),
+                          ),
+                        ),
                         SizedBox(height: 15),
                       ],
                     ),
                   
+                  // زر اختيار صورة جديدة
                   ElevatedButton(
                     style: ElevatedButton.styleFrom(
                       backgroundColor: kSecondaryColor,
@@ -701,38 +743,39 @@ class _VideoManagementScreenState extends State<VideoManagementScreen> {
                       children: [
                         Icon(Icons.image),
                         SizedBox(width: 8),
-                        Text('اختر صورة مصغرة جديدة'),
+                        Text(newThumbnail != null ? 'تغيير الصورة' : 'اختر صورة جديدة'),
                       ],
                     ),
                   ),
                 ],
               ),
             ),
-            actions: [
-              TextButton(
-                style: TextButton.styleFrom(
-                  foregroundColor: kSecondaryTextColor,
-                ),
-                onPressed: () => Navigator.pop(context),
-                child: Text('إلغاء'),
+          ),
+          actions: [
+            TextButton(
+              style: TextButton.styleFrom(
+                foregroundColor: kSecondaryTextColor,
               ),
-              ElevatedButton(
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: kSecondaryColor,
-                  foregroundColor: kTextColor,
-                ),
-                onPressed: () {
-                  Navigator.pop(context);
-                  _updateVideo(video['_id'], editTitleController.text, newThumbnail);
-                },
-                child: Text('حفظ التغييرات'),
+              onPressed: () => Navigator.pop(context),
+              child: Text('إلغاء'),
+            ),
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: kSecondaryColor,
+                foregroundColor: kTextColor,
               ),
-            ],
-          );
-        },
-      ),
-    );
-  }
+              onPressed: () {
+                Navigator.pop(context);
+                _updateVideo(video['_id'], editTitleController.text, newThumbnail);
+              },
+              child: Text('حفظ التغييرات'),
+            ),
+          ],
+        );
+      },
+    ),
+  );
+}
 
   @override
   Widget build(BuildContext context) {
@@ -740,8 +783,10 @@ class _VideoManagementScreenState extends State<VideoManagementScreen> {
       backgroundColor: kPrimaryColor,
       appBar: AppBar(
         backgroundColor: kCardColor,
-        title: !isSearching 
-            ? Text('إدارة الفيديوهات', style: TextStyle(color: kTextColor, fontWeight: FontWeight.bold))
+        title: !isSearching
+            ? Text('إدارة الفيديوهات',
+                style:
+                    TextStyle(color: kTextColor, fontWeight: FontWeight.bold))
             : TextField(
                 controller: _searchController,
                 style: TextStyle(color: kTextColor),
@@ -794,7 +839,7 @@ class _VideoManagementScreenState extends State<VideoManagementScreen> {
             Column(
               children: [
                 // عرض مهام الرفع الحالية
-                if (uploadTasks.isNotEmpty) 
+                if (uploadTasks.isNotEmpty)
                   Container(
                     decoration: BoxDecoration(
                       color: kCardColor,
@@ -826,7 +871,8 @@ class _VideoManagementScreenState extends State<VideoManagementScreen> {
                                 SizedBox(width: 12),
                                 Expanded(
                                   child: Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
                                     children: [
                                       Text(
                                         task.title,
@@ -838,7 +884,8 @@ class _VideoManagementScreenState extends State<VideoManagementScreen> {
                                       SizedBox(height: 4),
                                       Text(
                                         task.status,
-                                        style: TextStyle(color: kSecondaryTextColor),
+                                        style: TextStyle(
+                                            color: kSecondaryTextColor),
                                       ),
                                     ],
                                   ),
@@ -868,7 +915,8 @@ class _VideoManagementScreenState extends State<VideoManagementScreen> {
                                 SizedBox(width: 12),
                                 Expanded(
                                   child: Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
                                     children: [
                                       Text(
                                         task.title,
@@ -880,7 +928,8 @@ class _VideoManagementScreenState extends State<VideoManagementScreen> {
                                       SizedBox(height: 4),
                                       Text(
                                         task.status,
-                                        style: TextStyle(color: kSecondaryTextColor),
+                                        style: TextStyle(
+                                            color: kSecondaryTextColor),
                                       ),
                                     ],
                                   ),
@@ -903,7 +952,8 @@ class _VideoManagementScreenState extends State<VideoManagementScreen> {
                             decoration: BoxDecoration(
                               color: kCardColor.withOpacity(0.8),
                               borderRadius: BorderRadius.circular(8),
-                              border: Border.all(color: kSecondaryColor.withOpacity(0.3)),
+                              border: Border.all(
+                                  color: kSecondaryColor.withOpacity(0.3)),
                             ),
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
@@ -926,7 +976,8 @@ class _VideoManagementScreenState extends State<VideoManagementScreen> {
                                   child: LinearProgressIndicator(
                                     value: task.progress,
                                     backgroundColor: Colors.grey[800],
-                                    valueColor: AlwaysStoppedAnimation<Color>(kSecondaryColor),
+                                    valueColor: AlwaysStoppedAnimation<Color>(
+                                        kSecondaryColor),
                                     minHeight: 6,
                                   ),
                                 ),
@@ -937,22 +988,24 @@ class _VideoManagementScreenState extends State<VideoManagementScreen> {
                       },
                     ),
                   ),
-                  
+
                 // عرض الفيديوهات
                 Expanded(
-                  child: filteredVideos.isEmpty 
+                  child: filteredVideos.isEmpty
                       ? Center(
                           child: Column(
                             mainAxisAlignment: MainAxisAlignment.center,
                             children: [
                               Icon(
-                                isSearching ? Icons.search_off : Icons.video_library_outlined,
+                                isSearching
+                                    ? Icons.search_off
+                                    : Icons.video_library_outlined,
                                 size: 60,
                                 color: kSecondaryColor.withOpacity(0.6),
                               ),
                               SizedBox(height: 16),
                               Text(
-                                isSearching 
+                                isSearching
                                     ? 'لا توجد نتائج لبحثك'
                                     : 'لا توجد فيديوهات',
                                 style: TextStyle(
@@ -982,7 +1035,8 @@ class _VideoManagementScreenState extends State<VideoManagementScreen> {
                         )
                       : GridView.builder(
                           padding: EdgeInsets.all(12),
-                          gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                          gridDelegate:
+                              SliverGridDelegateWithFixedCrossAxisCount(
                             crossAxisCount: 2,
                             crossAxisSpacing: 12,
                             mainAxisSpacing: 12,
@@ -1019,10 +1073,13 @@ class _VideoManagementScreenState extends State<VideoManagementScreen> {
                                           height: 120,
                                           width: double.infinity,
                                           fit: BoxFit.cover,
-                                          errorBuilder: (context, error, stackTrace) => Container(
+                                          errorBuilder:
+                                              (context, error, stackTrace) =>
+                                                  Container(
                                             height: 120,
                                             color: Colors.grey[800],
-                                            child: Icon(Icons.broken_image, color: kTextColor),
+                                            child: Icon(Icons.broken_image,
+                                                color: kTextColor),
                                           ),
                                         ),
                                       ),
@@ -1031,18 +1088,20 @@ class _VideoManagementScreenState extends State<VideoManagementScreen> {
                                         right: 5,
                                         child: Container(
                                           padding: EdgeInsets.symmetric(
-                                            horizontal: 6, 
+                                            horizontal: 6,
                                             vertical: 3,
                                           ),
                                           decoration: BoxDecoration(
-                                            color: kPrimaryColor.withOpacity(0.7),
-                                            borderRadius: BorderRadius.circular(4),
+                                            color:
+                                                kPrimaryColor.withOpacity(0.7),
+                                            borderRadius:
+                                                BorderRadius.circular(4),
                                           ),
                                           child: Row(
                                             children: [
                                               Icon(
-                                                Icons.visibility, 
-                                                color: kTextColor, 
+                                                Icons.visibility,
+                                                color: kTextColor,
                                                 size: 14,
                                               ),
                                               SizedBox(width: 4),
@@ -1063,7 +1122,8 @@ class _VideoManagementScreenState extends State<VideoManagementScreen> {
                                   Padding(
                                     padding: EdgeInsets.all(10),
                                     child: Column(
-                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
                                       children: [
                                         Text(
                                           video['title'] ?? 'بلا عنوان',
@@ -1079,15 +1139,18 @@ class _VideoManagementScreenState extends State<VideoManagementScreen> {
                                         if (video['category'] != null)
                                           Container(
                                             padding: EdgeInsets.symmetric(
-                                              horizontal: 6, 
+                                              horizontal: 6,
                                               vertical: 2,
                                             ),
                                             decoration: BoxDecoration(
-                                              color: kSecondaryColor.withOpacity(0.2),
-                                              borderRadius: BorderRadius.circular(4),
+                                              color: kSecondaryColor
+                                                  .withOpacity(0.2),
+                                              borderRadius:
+                                                  BorderRadius.circular(4),
                                             ),
                                             child: Text(
-                                              video['category']?['name'] ?? 'لا يوجد قسم',
+                                              video['category']?['name'] ??
+                                                  'لا يوجد قسم',
                                               style: TextStyle(
                                                 color: kSecondaryColor,
                                                 fontSize: 12,
@@ -1098,16 +1161,18 @@ class _VideoManagementScreenState extends State<VideoManagementScreen> {
                                           ),
                                         SizedBox(height: 8),
                                         Row(
-                                          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                                          mainAxisAlignment:
+                                              MainAxisAlignment.spaceEvenly,
                                           children: [
                                             // زر التعديل
                                             IconButton(
                                               icon: Icon(
-                                                Icons.edit, 
+                                                Icons.edit,
                                                 color: Colors.blue,
                                                 size: 20,
                                               ),
-                                              onPressed: () => _showEditDialog(video),
+                                              onPressed: () =>
+                                                  _showEditDialog(video),
                                               padding: EdgeInsets.zero,
                                               constraints: BoxConstraints(),
                                               tooltip: 'تعديل',
@@ -1115,11 +1180,13 @@ class _VideoManagementScreenState extends State<VideoManagementScreen> {
                                             // زر الحذف
                                             IconButton(
                                               icon: Icon(
-                                                Icons.delete, 
+                                                Icons.delete,
                                                 color: Colors.red,
                                                 size: 20,
                                               ),
-                                              onPressed: () => _showDeleteConfirmation(video),
+                                              onPressed: () =>
+                                                  _showDeleteConfirmation(
+                                                      video),
                                               padding: EdgeInsets.zero,
                                               constraints: BoxConstraints(),
                                               tooltip: 'حذف',
@@ -1218,7 +1285,7 @@ class _VideoManagementScreenState extends State<VideoManagementScreen> {
 
   void _showAddDialog() {
     _clearForm();
-    
+
     showDialog(
       context: context,
       builder: (context) => StatefulBuilder(
@@ -1250,7 +1317,7 @@ class _VideoManagementScreenState extends State<VideoManagementScreen> {
                     ),
                   ),
                   SizedBox(height: 20),
-                  
+
                   // اختيار القسم
                   Container(
                     decoration: BoxDecoration(
@@ -1276,24 +1343,27 @@ class _VideoManagementScreenState extends State<VideoManagementScreen> {
                           ),
                         );
                       }).toList(),
-                      onChanged: (value) => setStateDialog(() => _selectedCategoryId = value),
+                      onChanged: (value) =>
+                          setStateDialog(() => _selectedCategoryId = value),
                       icon: Icon(Icons.arrow_drop_down, color: kSecondaryColor),
                     ),
                   ),
                   SizedBox(height: 25),
-                  
+
                   // اختيار ملف الفيديو
-                  if (_videoFile != null) 
+                  if (_videoFile != null)
                     Container(
                       padding: EdgeInsets.all(10),
                       decoration: BoxDecoration(
                         color: kPrimaryColor.withOpacity(0.3),
                         borderRadius: BorderRadius.circular(8),
-                        border: Border.all(color: kAccentColor.withOpacity(0.5)),
+                        border:
+                            Border.all(color: kAccentColor.withOpacity(0.5)),
                       ),
                       child: Row(
                         children: [
-                          Icon(Icons.check_circle, color: Colors.green, size: 20),
+                          Icon(Icons.check_circle,
+                              color: Colors.green, size: 20),
                           SizedBox(width: 8),
                           Expanded(
                             child: Text(
@@ -1312,11 +1382,12 @@ class _VideoManagementScreenState extends State<VideoManagementScreen> {
                   SizedBox(height: 10),
                   ElevatedButton(
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: _videoFile != null 
+                      backgroundColor: _videoFile != null
                           ? Colors.green.withOpacity(0.7)
                           : kSecondaryColor,
                       foregroundColor: kTextColor,
-                      padding: EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                      padding:
+                          EdgeInsets.symmetric(horizontal: 16, vertical: 10),
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(8),
                       ),
@@ -1328,37 +1399,54 @@ class _VideoManagementScreenState extends State<VideoManagementScreen> {
                     child: Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        Icon(_videoFile != null ? Icons.check : Icons.video_file),
+                        Icon(_videoFile != null
+                            ? Icons.check
+                            : Icons.video_file),
                         SizedBox(width: 8),
-                        Text(_videoFile != null ? 'تغيير ملف الفيديو' : 'اختر ملف الفيديو'),
+                        Text(_videoFile != null
+                            ? 'تغيير ملف الفيديو'
+                            : 'اختر ملف الفيديو'),
                       ],
                     ),
                   ),
                   SizedBox(height: 20),
-                  
+
                   // اختيار الصورة المصغرة
-                  if (_thumbnailFile != null)
-                    Column(
-                      children: [
-                        ClipRRect(
-                          borderRadius: BorderRadius.circular(8),
-                          child: Image.file(
-                            _thumbnailFile!,
-                            height: 120,
-                            width: double.infinity,
-                            fit: BoxFit.cover,
-                          ),
-                        ),
-                        SizedBox(height: 10),
-                      ],
-                    ),
+                // جزء من دالة _showAddDialog يتعلق بعرض الصورة المصغرة
+if (_thumbnailFile != null)
+  Column(
+    children: [
+      Container(
+        height: 120,
+        width: double.infinity,
+        decoration: BoxDecoration(
+          color: Colors.grey[800],
+          borderRadius: BorderRadius.circular(8),
+        ),
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(8),
+          child: Image.file(
+            _thumbnailFile!,
+            height: 120,
+            width: double.infinity,
+            fit: BoxFit.cover,
+            errorBuilder: (context, error, stackTrace) => Center(
+              child: Icon(Icons.broken_image, color: kTextColor),
+            ),
+          ),
+        ),
+      ),
+      SizedBox(height: 10),
+    ],
+  ),
                   ElevatedButton(
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: _thumbnailFile != null 
+                      backgroundColor: _thumbnailFile != null
                           ? Colors.green.withOpacity(0.7)
                           : kSecondaryColor,
                       foregroundColor: kTextColor,
-                      padding: EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                      padding:
+                          EdgeInsets.symmetric(horizontal: 16, vertical: 10),
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(8),
                       ),
@@ -1370,9 +1458,12 @@ class _VideoManagementScreenState extends State<VideoManagementScreen> {
                     child: Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        Icon(_thumbnailFile != null ? Icons.check : Icons.image),
+                        Icon(
+                            _thumbnailFile != null ? Icons.check : Icons.image),
                         SizedBox(width: 8),
-                        Text(_thumbnailFile != null ? 'تغيير الصورة المصغرة' : 'اختر الصورة المصغرة'),
+                        Text(_thumbnailFile != null
+                            ? 'تغيير الصورة المصغرة'
+                            : 'اختر الصورة المصغرة'),
                       ],
                     ),
                   ),

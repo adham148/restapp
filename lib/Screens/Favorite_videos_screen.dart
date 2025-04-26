@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 import '../services/TokenStorage.dart';
-import 'video_player_screen.dart'; // Make sure to create this screen
+import 'video_player_screen.dart';
 
 class FavoriteVideosScreen extends StatefulWidget {
   const FavoriteVideosScreen({super.key});
@@ -12,7 +12,7 @@ class FavoriteVideosScreen extends StatefulWidget {
 }
 
 class _FavoriteVideosScreenState extends State<FavoriteVideosScreen> {
-  List videos = [];
+  List<dynamic> favoriteVideos = []; // قائمة بالفيديوهات المفضلة
   bool isLoading = true;
   String? errorMessage;
 
@@ -37,11 +37,11 @@ class _FavoriteVideosScreenState extends State<FavoriteVideosScreen> {
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
         setState(() {
-          videos = data['videos'];
+          favoriteVideos = data; // البيانات تعود كمصفوفة مباشرة
           isLoading = false;
         });
       } else {
-        throw Exception('لا توجد فديوهات مفظله');
+        throw Exception('لا توجد فيديوهات مفضلة');
       }
     } catch (e) {
       setState(() {
@@ -58,7 +58,7 @@ class _FavoriteVideosScreenState extends State<FavoriteVideosScreen> {
       appBar: AppBar(
         backgroundColor: Colors.black,
         title: const Text(
-          'Favorite Videos',
+          'الفيديوهات المفضلة',
           style: TextStyle(color: Colors.white),
         ),
         centerTitle: true,
@@ -66,47 +66,44 @@ class _FavoriteVideosScreenState extends State<FavoriteVideosScreen> {
         iconTheme: const IconThemeData(color: Colors.white),
       ),
       body: isLoading
-    ? Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            // الصورة مع التأكد من تحميلها بشكل صحيح
-            SizedBox(
-              width: 190,
-              height: 190,
-              child: Image.asset(
-                'assets/images/2.png',
-                fit: BoxFit.contain,
-                errorBuilder: (context, error, stackTrace) {
-                  debugPrint('Error loading image: $error'); // طباعة الخطأ في Debug Console
-                  return const Icon(Icons.error, color: Colors.red, size: 50);
-                },
+          ? Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  SizedBox(
+                    width: 190,
+                    height: 190,
+                    child: Image.asset(
+                      'assets/images/2.png',
+                      fit: BoxFit.contain,
+                      errorBuilder: (context, error, stackTrace) {
+                        debugPrint('Error loading image: $error');
+                        return const Icon(Icons.error, color: Colors.red, size: 50);
+                      },
+                    ),
+                  ),
+                  const SizedBox(height: 20),
+                  const Text(
+                    'جاري تحميل الفيديوهات...',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 16,
+                      fontWeight: FontWeight.w300,
+                    ),
+                  ),
+                  const SizedBox(height: 20),
+                  SizedBox(
+                    width: 30,
+                    height: 30,
+                    child: CircularProgressIndicator(
+                      valueColor: const AlwaysStoppedAnimation<Color>(Colors.red),
+                      strokeWidth: 2,
+                      backgroundColor: Colors.white.withOpacity(0.2),
+                    ),
+                  ),
+                ],
               ),
-            ),
-            const SizedBox(height: 20),
-            const Text(
-              'جاري تحميل الفيديو...',
-              style: TextStyle(
-                color: Colors.white,
-                fontSize: 16,
-                fontWeight: FontWeight.w300,
-              ),
-            ),
-            const SizedBox(height: 20),
-            // مؤشر تحميل دائري
-            SizedBox(
-              width: 30,
-              height: 30,
-              child: CircularProgressIndicator(
-                valueColor: const AlwaysStoppedAnimation<Color>(Colors.red),
-                strokeWidth: 2,
-                backgroundColor: Colors.white.withOpacity(0.2),
-              ),
-            ),
-          ],
-        ),
-      ) // استبدله بالكود الخاص بك عند انتهاء التحميل
-
+            )
           : errorMessage != null
               ? Center(
                   child: Column(
@@ -122,15 +119,15 @@ class _FavoriteVideosScreenState extends State<FavoriteVideosScreen> {
                           backgroundColor: Colors.redAccent,
                         ),
                         onPressed: fetchFavoriteVideos,
-                        child: const Text('Retry'),
+                        child: const Text('إعادة المحاولة'),
                       ),
                     ],
                   ),
                 )
-              : videos.isEmpty
+              : favoriteVideos.isEmpty
                   ? const Center(
                       child: Text(
-                        'No favorite videos yet',
+                        'لا توجد فيديوهات مفضلة بعد',
                         style: TextStyle(color: Colors.white),
                       ),
                     )
@@ -142,9 +139,10 @@ class _FavoriteVideosScreenState extends State<FavoriteVideosScreen> {
                         mainAxisSpacing: 16,
                         childAspectRatio: 0.8,
                       ),
-                      itemCount: videos.length,
+                      itemCount: favoriteVideos.length,
                       itemBuilder: (context, index) {
-                        final video = videos[index];
+                        final favoriteItem = favoriteVideos[index];
+                        final video = favoriteItem['video']; // الوصول إلى كائن الفيديو
                         return VideoItem(
                           video: video,
                           onTap: () => _navigateToVideoPlayer(context, video),
@@ -159,9 +157,10 @@ class _FavoriteVideosScreenState extends State<FavoriteVideosScreen> {
       context,
       MaterialPageRoute(
         builder: (context) => VideoDetailsScreen(
-          videoId: video['_id'], // Make sure your API returns this field
+          videoId: video['_id'],
           // videoUrl: video['url'],
           // videoTitle: video['title'],
+          // يمكنك إضافة المزيد من الخصائص حسب الحاجة
         ),
       ),
     );
@@ -180,8 +179,7 @@ class VideoItem extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // تحقق من وجود الصورة المصغرة وكونها صالحة
-    final thumbnailUrl = video['video']['thumbnail']?.toString() ?? '';
+    final thumbnailUrl = video['thumbnail']?.toString() ?? '';
     final hasValidThumbnail = thumbnailUrl.isNotEmpty && Uri.tryParse(thumbnailUrl)?.hasAbsolutePath == true;
 
     return GestureDetector(
@@ -203,6 +201,17 @@ class VideoItem extends StatelessWidget {
                     ? Image.network(
                         thumbnailUrl,
                         fit: BoxFit.cover,
+                        loadingBuilder: (context, child, loadingProgress) {
+                          if (loadingProgress == null) return child;
+                          return Center(
+                            child: CircularProgressIndicator(
+                              value: loadingProgress.expectedTotalBytes != null
+                                  ? loadingProgress.cumulativeBytesLoaded /
+                                      loadingProgress.expectedTotalBytes!
+                                  : null,
+                            ),
+                          );
+                        },
                         errorBuilder: (context, error, stackTrace) {
                           return _buildPlaceholder();
                         },
@@ -216,7 +225,7 @@ class VideoItem extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    video['video']['title'] ?? 'No title',
+                    video['title'] ?? 'لا عنوان',
                     style: const TextStyle(
                       color: Colors.white,
                       fontWeight: FontWeight.bold,
@@ -227,7 +236,7 @@ class VideoItem extends StatelessWidget {
                   ),
                   const SizedBox(height: 4),
                   Text(
-                    'Views: ${video['video']['views'] ?? '0'}',
+                    'المشاهدات: ${video['views']?.toString() ?? '0'}',
                     style: TextStyle(
                       color: Colors.grey[400],
                       fontSize: 12,
@@ -244,7 +253,7 @@ class VideoItem extends StatelessWidget {
                       ),
                       onPressed: onTap,
                       child: const Text(
-                        'Watch',
+                        'مشاهدة',
                         style: TextStyle(fontSize: 12),
                       ),
                     ),

@@ -8,7 +8,7 @@ plugins {
 
 android {
     namespace = "com.example.breakapp"
-    compileSdk = flutter.compileSdkVersion
+    compileSdk = 35
     ndkVersion = flutter.ndkVersion
 
     compileOptions {
