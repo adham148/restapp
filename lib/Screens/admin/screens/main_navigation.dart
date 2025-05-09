@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import 'Complaints_management_screen.dart';
+import 'UserManagementScreen.dart';
 import 'add_sections_screen.dart';
 import 'add_videos_screen.dart';
 import 'dashboard.dart';
@@ -15,9 +17,11 @@ class _MainNavigationState extends State<MainNavigation> {
   int _currentIndex = 0;
 
   final List<Widget> _screens = [
-    StatisticsScreen(),
+    StatsScreen(),
     CategoriesScreen(),
     VideoManagementScreen(),
+    UserManagementScreen(), // Added user management screen
+    ComplaintsScreen(), // Added complaints management screen
   ];
 
   @override
@@ -27,7 +31,7 @@ class _MainNavigationState extends State<MainNavigation> {
       body: _screens[_currentIndex],
       bottomNavigationBar: ClipRRect(
         borderRadius: const BorderRadius.vertical(
-          top: Radius.circular(20), // زيادة نصف القطر لجعل التقوس أكثر وضوحاً
+          top: Radius.circular(20),
         ),
         child: Container(
           decoration: const BoxDecoration(
@@ -41,8 +45,8 @@ class _MainNavigationState extends State<MainNavigation> {
               });
             },
             backgroundColor: Colors.transparent,
-            elevation: 0, // إزالة الظل بالكامل
-            selectedItemColor: Colors.red[700], // لون أحمر أكثر كثافة
+            elevation: 0,
+            selectedItemColor: Colors.red[700],
             unselectedItemColor: Colors.grey[600],
             selectedLabelStyle: const TextStyle(
               fontWeight: FontWeight.bold,
@@ -58,7 +62,7 @@ class _MainNavigationState extends State<MainNavigation> {
                   margin: const EdgeInsets.only(bottom: 4),
                   child: Icon(
                     Icons.home,
-                    size: _currentIndex == 0 ? 28 : 24, // تكبير الأيقونة عند التحديد
+                    size: _currentIndex == 0 ? 28 : 24,
                   ),
                 ),
                 label: 'الرئيسية',
@@ -83,6 +87,26 @@ class _MainNavigationState extends State<MainNavigation> {
                 ),
                 label: 'الفيديوهات',
               ),
+              BottomNavigationBarItem(
+                icon: Container(
+                  margin: const EdgeInsets.only(bottom: 4),
+                  child: Icon(
+                    Icons.people,
+                    size: _currentIndex == 3 ? 28 : 24,
+                  ),
+                ),
+                label: 'المستخدمين',
+              ),
+              BottomNavigationBarItem(
+                icon: Container(
+                  margin: const EdgeInsets.only(bottom: 4),
+                  child: Icon(
+                    Icons.report,
+                    size: _currentIndex == 4 ? 28 : 24,
+                  ),
+                ),
+                label: 'الشكاوي',
+              ),
             ],
           ),
         ),
@@ -91,4 +115,9 @@ class _MainNavigationState extends State<MainNavigation> {
   }
 }
 
-// Screens Placeholders
+
+
+
+
+
+

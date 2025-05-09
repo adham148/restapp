@@ -107,32 +107,83 @@ class ApiService {
       throw Exception('Failed to load videos for category');
     }
   }
-
+  // دالة إرسال شكوى جديدة
   static Future<void> sendComplaint(String title, String description) async {
-  const String url = '$baseUrl/complaints';
-  final String? token = await TokenStorage.getToken();
+    const String url = '$baseUrl/complaints';
+    final String? token = await TokenStorage.getToken();
 
-  if (token == null) {
-    throw Exception('Token not found');
+    if (token == null) {
+      throw Exception('Token not found');
+    }
+
+    final response = await http.post(
+      Uri.parse(url),
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer $token',
+      },
+      body: json.encode({
+        'title': title,
+        'description': description,
+      }),
+    );
+
+    // قبول كلا الحالتين 200 و 201 كاستجابة ناجحة
+    if (response.statusCode < 200 || response.statusCode >= 300) {
+      throw Exception('Failed to send complaint: ${response.body}');
+    }
+  }
+  
+  // دالة جلب شكاوى المستخدم
+  static Future<List<dynamic>> getUserComplaints() async {
+    const String url = '$baseUrl/user/complaints';
+    final String? token = await TokenStorage.getToken();
+
+    if (token == null) {
+      throw Exception('Token not found');
+    }
+
+    final response = await http.get(
+      Uri.parse(url),
+      headers: {
+        'Authorization': 'Bearer $token',
+      },
+    );
+
+    if (response.statusCode >= 200 && response.statusCode < 300) {
+      return json.decode(response.body);
+    } else {
+      throw Exception('Failed to fetch complaints: ${response.body}');
+    }
+  }
+  
+  // دالة إضافة رد على شكوى
+  static Future<void> addResponseToComplaint(String complaintId, String text) async {
+    final String url = '$baseUrl/user/complaints/$complaintId/response';
+    final String? token = await TokenStorage.getToken();
+
+    if (token == null) {
+      throw Exception('Token not found');
+    }
+
+    final response = await http.post(
+      Uri.parse(url),
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer $token',
+      },
+      body: json.encode({
+        'text': text,
+      }),
+    );
+
+    if (response.statusCode < 200 || response.statusCode >= 300) {
+      throw Exception('Failed to add response: ${response.body}');
+    }
   }
 
-  final response = await http.post(
-    Uri.parse(url),
-    headers: {
-      'Content-Type': 'application/json',
-      'Authorization': 'Bearer $token',
-    },
-    body: json.encode({
-      'title': title,
-      'description': description,
-    }),
-  );
 
-  // قبول كلا الحالتين 200 و 201 كاستجابة ناجحة
-  if (response.statusCode < 200 || response.statusCode >= 300) {
-    throw Exception('Failed to send complaint: ${response.body}');
-  }
-}
+
 
   // 🟢 إضافة فيديو إلى المحفوظات (دون إزالة إذا كان موجوداً)
 static Future<void> addToBookmarks(String videoId) async {

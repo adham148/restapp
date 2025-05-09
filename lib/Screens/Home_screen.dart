@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../services/api_service.dart';
 import 'Favorite_videos_screen.dart';
 import 'auth/Login_screen.dart';
 import 'Subcate_gories_screen.dart';
 import 'Video_player_screen.dart';
 import 'complaints_screen.dart';
+import 'search_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -43,12 +45,12 @@ class _HomeScreenState extends State<HomeScreen> {
             IconButton(
               icon: const Icon(Icons.search, color: Colors.white),
               onPressed: () {
-                // Navigator.push(
-                //   context,
-                //   MaterialPageRoute(
-                //     builder: (context) => SearchScreen(), // استبدل بـ شاشة البحث الخاصة بك
-                //   ),
-                // );
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => SearchScreen(), 
+                  ),
+                );
               },
             ),
             IconButton(
@@ -73,13 +75,16 @@ class _HomeScreenState extends State<HomeScreen> {
                 );
               },
             ),
-           IconButton(
+          IconButton(
   icon: const Icon(Icons.logout, color: Colors.redAccent),
-  onPressed: () {
+  onPressed: () async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool('isFirstLaunch', true); // إعادة التعيين إلى true
+    
     Navigator.pushAndRemoveUntil(
       context,
       MaterialPageRoute(builder: (context) => const LoginScreen()),
-      (Route<dynamic> route) => false, // هذا يزيل جميع الشاشات السابقة
+      (Route<dynamic> route) => false,
     );
   },
 ),

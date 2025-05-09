@@ -1,39 +1,50 @@
-import 'dart:math';
-
 import 'package:flutter/material.dart';
-import 'package:http/http.dart' as http;
 import 'dart:convert';
-import 'package:flutter/services.dart';
-import 'dart:ui';
+import 'package:http/http.dart' as http;
+import 'package:fl_chart/fl_chart.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'dart:math' as math;
 
-class StatisticsScreen extends StatefulWidget {
-  const StatisticsScreen({super.key});
+import '../../auth/Login_screen.dart';
 
+class StatsScreen extends StatefulWidget {
   @override
-  _StatisticsScreenState createState() => _StatisticsScreenState();
+  _StatsScreenState createState() => _StatsScreenState();
 }
 
-class _StatisticsScreenState extends State<StatisticsScreen> with SingleTickerProviderStateMixin {
-  Map<String, dynamic> stats = {};
+class _StatsScreenState extends State<StatsScreen> with TickerProviderStateMixin {
   bool isLoading = true;
-  late TabController _tabController;
-  
+  Map<String, dynamic>? stats;
+  String? error;
+  late AnimationController _animationController;
+  late Animation<double> _animation;
+
+  // تدرجات ألوان جذابة وعصرية
+  final List<List<Color>> gradients = [
+    [Color(0xFFFF416C), Color(0xFFFF4B2B)], // تدرج أحمر جميل
+    [Color(0xFF8A2387), Color(0xFFE94057), Color(0xFFF27121)], // تدرج متعدد الألوان
+    [Color(0xFF1A2980), Color(0xFF26D0CE)], // تدرج أزرق فيروزي
+    [Color(0xFF6A11CB), Color(0xFF2575FC)], // تدرج بنفسجي
+  ];
+
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 4, vsync: this);
+    _animationController = AnimationController(
+      vsync: this,
+      duration: Duration(milliseconds: 1500),
+    );
+    _animation = CurvedAnimation(
+      parent: _animationController,
+      curve: Curves.easeInOut,
+    );
+    _animationController.forward();
     fetchStats();
-    
-    // تعيين وضع الشاشة الكاملة مع شريط حالة شفاف
-    SystemChrome.setSystemUIOverlayStyle(const SystemUiOverlayStyle(
-      statusBarColor: Colors.transparent,
-      statusBarIconBrightness: Brightness.light,
-    ));
   }
-  
+
   @override
   void dispose() {
-    _tabController.dispose();
+    _animationController.dispose();
     super.dispose();
   }
 
@@ -44,2031 +55,1140 @@ class _StatisticsScreenState extends State<StatisticsScreen> with SingleTickerPr
       );
 
       if (response.statusCode == 200) {
+        final data = json.decode(response.body);
         setState(() {
-          stats = json.decode(response.body)['stats'];
+          stats = data['stats'];
           isLoading = false;
         });
       } else {
-        throw Exception('Failed to load statistics');
+        setState(() {
+          error = 'فشل في تحميل البيانات: ${response.statusCode}';
+          isLoading = false;
+        });
       }
     } catch (e) {
       setState(() {
+        error = 'حدث خطأ: $e';
         isLoading = false;
       });
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Error: ${e.toString()}'),
-          backgroundColor: Colors.red[900],
-          behavior: SnackBarBehavior.floating,
-        ),
-      );
     }
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFF121212),
-    extendBodyBehindAppBar: true,
-appBar: AppBar(
-  backgroundColor: Colors.transparent,
-  elevation: 0,
-  title: const Text(
-    'إحصائيات التطبيق',
-    style: TextStyle(
-      fontWeight: FontWeight.bold,
-      color: Colors.white,
-      fontSize: 22,
-    ),
-  ),
-  centerTitle: true,
-  leading: IconButton(
-    icon: const Icon(Icons.arrow_back, color: Colors.white),
-    onPressed: () => Navigator.of(context).pop(),
-    iconSize: 28,
-  ),
-  actions: [
+backgroundColor: Colors.black, // بدلاً من Color(0xFF0F1221)
+      appBar: AppBar(
+        title: Text(
+          'إحصائيات النظام', 
+          style: TextStyle(
+            fontWeight: FontWeight.bold, 
+            fontSize: 22,
+            letterSpacing: 0.5,
+          )
+        ),
+backgroundColor: Colors.black, // بدلاً من Color(0xFF0F1221)
+        centerTitle: true,
+        elevation: 0,
+leading: Row(
+  mainAxisSize: MainAxisSize.min,
+  children: [
     IconButton(
-      icon: const Icon(Icons.refresh, color: Colors.white),
-      onPressed: () {
-        setState(() => isLoading = true);
-        fetchStats();
+      icon: Icon(Icons.bar_chart_rounded, color: Color(0xFFFF416C)),
+      onPressed: () {}, // Add functionality here if needed
+    ),
+    IconButton(
+      icon: const Icon(Icons.logout, color: Colors.redAccent),
+      onPressed: () async {
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.setBool('isFirstLaunch', true); // إعادة التعيين إلى true
+        
+        Navigator.pushAndRemoveUntil(
+          context,
+          MaterialPageRoute(builder: (context) => const LoginScreen()),
+          (Route<dynamic> route) => false,
+        );
       },
-      iconSize: 28,
     ),
   ],
-  flexibleSpace: Container(
-    decoration: BoxDecoration(
-      gradient: LinearGradient(
-        begin: Alignment.topCenter,
-        end: Alignment.bottomCenter,
-        colors: [
-          Colors.black.withOpacity(0.8),
-          Colors.black.withOpacity(0.4),
-          Colors.transparent,
-        ],
-      ),
-    ),
-  ),
-  bottom: PreferredSize(
-    preferredSize: const Size.fromHeight(70),
-    child: Column(
-      children: [
-        // Divider for separation
-        Container(
-          height: 1,
-          margin: const EdgeInsets.symmetric(horizontal: 16),
-          color: Colors.white.withOpacity(0.2),
-        ),
-        const SizedBox(height: 8),
-        // Tab Bar
-        Container(
-          height: 50,
-          margin: const EdgeInsets.symmetric(horizontal: 16),
-          decoration: BoxDecoration(
-            color: Colors.black.withOpacity(0.3),
-            borderRadius: BorderRadius.circular(12),
-          ),
-          child: TabBar(
-            controller: _tabController,
-            indicator: BoxDecoration(
-              borderRadius: BorderRadius.circular(12),
-              color: Colors.red,
-            ),
-            labelColor: Colors.white,
-            unselectedLabelColor: Colors.white.withOpacity(0.7),
-            labelStyle: const TextStyle(
-              fontWeight: FontWeight.bold,
-              fontSize: 14,
-            ),
-            tabs: const [
-              Tab(icon: Icon(Icons.dashboard), text: "لوحة"),
-              Tab(icon: Icon(Icons.video_library), text: "فيديوهات"),
-              Tab(icon: Icon(Icons.category), text: "تصنيفات"),
-              Tab(icon: Icon(Icons.report_problem), text: "شكاوى"),
-            ],
-          ),
-        ),
-      ],
-    ),
-  ),
 ),
+      ),
       body: isLoading
-          ? _buildLoadingState()
-          : Padding(
-              padding: EdgeInsets.only(top: MediaQuery.of(context).padding.top + kToolbarHeight + 0),
-              child: TabBarView(
-                controller: _tabController,
+          ? Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  _buildDashboardTab(),
-                  _buildVideosTab(),
-                  _buildCategoriesTab(),
-                  _buildComplaintsTab(),
+                  SizedBox(
+                    width: 60, 
+                    height: 60,
+                    child: CircularProgressIndicator(
+                      valueColor: AlwaysStoppedAnimation<Color>(Color(0xFFFF416C)),
+                      strokeWidth: 3,
+                    ),
+                  ),
+                  SizedBox(height: 20),
+                  Text(
+                    'جاري تحميل الإحصائيات...',
+                    style: TextStyle(
+                      color: Colors.white70,
+                      fontSize: 16,
+                    ),
+                  )
                 ],
               ),
-            ),
+            )
+          : error != null
+              ? Center(
+                  child: Container(
+                    padding: EdgeInsets.all(20),
+                    margin: EdgeInsets.all(20),
+                    decoration: BoxDecoration(
+                      color: Colors.red.withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(15),
+                      border: Border.all(color: Colors.red.withOpacity(0.3), width: 1),
+                    ),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(Icons.error_outline, color: Colors.red, size: 60),
+                        SizedBox(height: 20),
+                        Text(
+                          error!, 
+                          style: TextStyle(
+                            color: Colors.red.shade300,
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                          ),
+                          textAlign: TextAlign.center,
+                        ),
+                        SizedBox(height: 20),
+                        ElevatedButton.icon(
+                          onPressed: () {
+                            setState(() {
+                              isLoading = true;
+                              error = null;
+                            });
+                            fetchStats();
+                          },
+                          icon: Icon(Icons.refresh),
+                          label: Text('إعادة المحاولة'),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Color(0xFFFF416C),
+                            foregroundColor: Colors.white,
+                            padding: EdgeInsets.symmetric(horizontal: 30, vertical: 12),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(30),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                )
+              : SingleChildScrollView(
+                  padding: EdgeInsets.all(16),
+                  physics: BouncingScrollPhysics(),
+                  child: Directionality(
+                    textDirection: TextDirection.rtl,
+                    child: FadeTransition(
+                      opacity: _animation,
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          _buildHeaderSection(),
+                          SizedBox(height: 30),
+                          _buildVideosSection(),
+                          SizedBox(height: 30),
+                          _buildCategoriesSection(),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
     );
   }
 
- Widget _buildLoadingState() {
-  return Container(
-    decoration: const BoxDecoration(
-      gradient: LinearGradient(
-        begin: Alignment.topCenter,
-        end: Alignment.bottomCenter,
-        colors: [
-          Color(0xFF1A1A1A),
-          Color(0xFF0A0A0A),
-        ],
-      ),
-    ),
-    child: Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          // الصورة مع التأكد من تحميلها بشكل صحيح
-          SizedBox(
-            width: 190,
-            height: 190,
-            child: Image.asset(
-              'assets/images/3.png',
-              fit: BoxFit.contain,
-              errorBuilder: (context, error, stackTrace) {
-                debugPrint('Error loading image: $error');
-                return const Icon(Icons.error, color: Colors.red, size: 50);
-              },
-            ),
-          ),
-          const SizedBox(height: 20),
-          const Text(
-            'جاري تحميل الإحصائيات...',
-            style: TextStyle(
-              color: Colors.white,
-              fontSize: 16,
-              fontWeight: FontWeight.w300,
-            ),
-          ),
-          const SizedBox(height: 20),
-          // مؤشر تحميل دائري
-          SizedBox(
-            width: 30,
-            height: 30,
-            child: CircularProgressIndicator(
-              valueColor: const AlwaysStoppedAnimation<Color>(Colors.red),
-              strokeWidth: 2,
-              backgroundColor: Colors.white.withOpacity(0.2),
-            ),
-          ),
-        ],
-      ),
-    ),
-  );
-}
-
-
-  Widget _buildDashboardTab() {
+  Widget _buildHeaderSection() {
+    final totalVideos = stats?['videos']?['total'] ?? 0;
+    final totalViews = stats?['views']?['total'] ?? 0;
+    final totalCategories = stats?['categories']?['total'] ?? 0;
+    final totalSeries = stats?['series']?['total'] ?? 0;
+    
     return Container(
-      decoration: const BoxDecoration(
+      width: double.infinity,
+      decoration: BoxDecoration(
         gradient: LinearGradient(
-          begin: Alignment.topCenter,
-          end: Alignment.bottomCenter,
-          colors: [
-            Color(0xFF1A1A1A),
-            Color(0xFF0A0A0A),
-          ],
+          colors: gradients[0],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
         ),
-      ),
-      child: SingleChildScrollView(
-        physics: const BouncingScrollPhysics(),
-        padding: const EdgeInsets.fromLTRB(16, 100, 16, 16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            _buildOverviewCards(),
-            const SizedBox(height: 24),
-            _buildSectionHeader("نظرة عامة على الموقع", Icons.insights),
-            const SizedBox(height: 16),
-            _buildCategoryChart(),
-            const SizedBox(height: 24),
-            _buildSectionHeader("أكثر الفيديوهات مشاهدة", Icons.trending_up),
-            const SizedBox(height: 16),
-            _buildMostViewedVideos(),
-            const SizedBox(height: 24),
-            _buildSectionHeader("التصنيفات الشائعة", Icons.category),
-            const SizedBox(height: 16),
-            _buildPopularCategories(),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildVideosTab() {
-    return Container(
-      decoration: const BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topCenter,
-          end: Alignment.bottomCenter,
-          colors: [
-            Color(0xFF1A1A1A),
-            Color(0xFF0A0A0A),
-          ],
-        ),
-      ),
-      child: SingleChildScrollView(
-        physics: const BouncingScrollPhysics(),
-        padding: const EdgeInsets.fromLTRB(16, 100, 16, 16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            _buildVideosSummaryCard(),
-            const SizedBox(height: 24),
-            _buildSectionHeader("آخر الفيديوهات المضافة", Icons.new_releases),
-            const SizedBox(height: 16),
-            _buildRecentlyAddedVideos(),
-            const SizedBox(height: 24),
-            _buildSectionHeader("الأكثر مشاهدة", Icons.visibility),
-            const SizedBox(height: 16),
-            _buildMostViewedVideosGrid(),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildCategoriesTab() {
-    return Container(
-      decoration: const BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topCenter,
-          end: Alignment.bottomCenter,
-          colors: [
-            Color(0xFF1A1A1A),
-            Color(0xFF0A0A0A),
-          ],
-        ),
-      ),
-      child: SingleChildScrollView(
-        physics: const BouncingScrollPhysics(),
-        padding: const EdgeInsets.fromLTRB(16, 100, 16, 16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            _buildCategoriesSummaryCard(),
-            const SizedBox(height: 24),
-            _buildSectionHeader("توزيع الفيديوهات حسب التصنيف", Icons.pie_chart),
-            const SizedBox(height: 16),
-            _buildDetailedCategoryDistribution(),
-            const SizedBox(height: 24),
-            _buildSectionHeader("قائمة التصنيفات", Icons.list),
-            const SizedBox(height: 16),
-            _buildCategoriesList(),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildComplaintsTab() {
-    return Container(
-      decoration: const BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topCenter,
-          end: Alignment.bottomCenter,
-          colors: [
-            Color(0xFF1A1A1A),
-            Color(0xFF0A0A0A),
-          ],
-        ),
-      ),
-      child: SingleChildScrollView(
-        physics: const BouncingScrollPhysics(),
-        padding: const EdgeInsets.fromLTRB(16, 100, 16, 16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            _buildComplaintsSummaryCard(),
-            const SizedBox(height: 24),
-            _buildSectionHeader("الشكاوى الأخيرة", Icons.report_problem),
-            const SizedBox(height: 16),
-            _buildRecentComplaints(),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildOverviewCards() {
-    return SizedBox(
-      height: 170,
-      child: ListView(
-        physics: const BouncingScrollPhysics(),
-        scrollDirection: Axis.horizontal,
-        children: [
-          _buildStatsCard(
-            title: "إجمالي الفيديوهات",
-            value: "${stats['videos']['total']}",
-            icon: Icons.movie,
-            gradient: [const Color(0xFFFF416C), const Color(0xFFFF4B2B)],
-          ),
-          _buildStatsCard(
-            title: "إجمالي المشاهدات",
-            value: "${stats['views']['total']}",
-            icon: Icons.visibility,
-            gradient: [const Color(0xFFFF512F), const Color(0xFFDD2476)],
-          ),
-          _buildStatsCard(
-            title: "إجمالي التصنيفات",
-            value: "${stats['categories']['total']}",
-            icon: Icons.category,
-            gradient: [const Color(0xFFFF0844), const Color(0xFFFFB199)],
-          ),
-          _buildStatsCard(
-            title: "متوسط المشاهدات",
-            value: stats['videos']['total'] > 0 
-               ? "${(stats['views']['total'] / stats['videos']['total']).round()}"
-               : "0",
-            icon: Icons.bar_chart,
-            gradient: [const Color(0xFFFF8008), const Color(0xFFFFC837)],
+        borderRadius: BorderRadius.circular(24),
+        boxShadow: [
+          BoxShadow(
+            color: gradients[0][0].withOpacity(0.3),
+            blurRadius: 20,
+            offset: Offset(0, 10),
+            spreadRadius: -5,
           ),
         ],
       ),
+      child: Padding(
+        padding: EdgeInsets.all(25),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Container(
+                  padding: EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withOpacity(0.2),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Icon(
+                    Icons.insights_rounded,
+                    color: Colors.white,
+                    size: 24,
+                  ),
+                ),
+                SizedBox(width: 15),
+                Text(
+                  'الإحصائيات العامة',
+                  style: TextStyle(
+                    fontSize: 24,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.white,
+                    letterSpacing: 0.5,
+                  ),
+                ),
+              ],
+            ),
+            SizedBox(height: 30),
+            GridView.count(
+              crossAxisCount: 2,
+              shrinkWrap: true,
+              physics: NeverScrollableScrollPhysics(),
+              mainAxisSpacing: 20,
+              crossAxisSpacing: 20,
+              childAspectRatio: 1.5,
+              children: [
+                _buildStatCard(
+                  title: 'الفيديوهات',
+                  value: totalVideos.toString(),
+                  icon: Icons.video_library_rounded,
+                  gradient: [Color(0xFFFFB347), Color(0xFFFFCC33)],
+                ),
+                _buildStatCard(
+                  title: 'المشاهدات',
+                  value: totalViews.toString(),
+                  icon: Icons.visibility_rounded,
+                  gradient: [Color(0xFF0BA360), Color(0xFF3CBA92)],
+                ),
+                _buildStatCard(
+                  title: 'الأقسام',
+                  value: totalCategories.toString(),
+                  icon: Icons.category_rounded,
+                  gradient: [Color(0xFF396afc), Color(0xFF2948ff)],
+                ),
+                _buildStatCard(
+                  title: 'المسلسلات',
+                  value: totalSeries.toString(),
+                  icon: Icons.movie_rounded,
+                  gradient: [Color(0xFF834d9b), Color(0xFFd04ed6)],
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
     );
   }
 
-  Widget _buildStatsCard({
+  Widget _buildStatCard({
     required String title,
     required String value,
     required IconData icon,
     required List<Color> gradient,
   }) {
     return Container(
-      width: 170,
-      margin: const EdgeInsets.only(right: 16),
       decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(20),
         gradient: LinearGradient(
+          colors: [Colors.white.withOpacity(0.15), Colors.white.withOpacity(0.05)],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
-          colors: gradient,
         ),
-        boxShadow: [
-          BoxShadow(
-            color: gradient[0].withOpacity(0.3),
-            blurRadius: 15,
-            offset: const Offset(0, 5),
-          ),
-        ],
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(
+          color: Colors.white.withOpacity(0.1),
+          width: 1,
+        ),
       ),
-      child: Stack(
-        children: [
-          Positioned(
-            right: -20,
-            top: -20,
-            child: Icon(
-              icon,
-              size: 120,
-              color: Colors.white.withOpacity(0.1),
-            ),
-          ),
-          Padding(
-            padding: const EdgeInsets.all(20),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisAlignment: MainAxisAlignment.end,
+      child: Padding(
+        padding: EdgeInsets.all(15),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Row(
               children: [
                 Container(
-                  padding: const EdgeInsets.all(12),
+                  padding: EdgeInsets.all(8),
                   decoration: BoxDecoration(
-                    color: Colors.white.withOpacity(0.2),
+                    gradient: LinearGradient(colors: gradient),
                     borderRadius: BorderRadius.circular(12),
                   ),
-                  child: Icon(
-                    icon,
-                    color: Colors.white,
-                    size: 24,
-                  ),
+                  child: Icon(icon, color: Colors.white, size: 20),
                 ),
-                const Spacer(),
-                Text(
-                  value,
-                  style: const TextStyle(
-                    fontSize: 28,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.white,
-                  ),
+                Spacer(),
+                Icon(
+                  Icons.arrow_upward_rounded,
+                  color: gradient[0],
+                  size: 16,
                 ),
-                const SizedBox(height: 4),
+                SizedBox(width: 4),
                 Text(
-                  title,
+                  '10%',
                   style: TextStyle(
-                    fontSize: 14,
-                    color: Colors.white.withOpacity(0.8),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildSectionHeader(String title, IconData icon) {
-    return Row(
-      children: [
-        Container(
-          padding: const EdgeInsets.all(8),
-          decoration: BoxDecoration(
-            color: Colors.red,
-            borderRadius: BorderRadius.circular(10),
-          ),
-          child: Icon(
-            icon,
-            color: Colors.white,
-            size: 20,
-          ),
-        ),
-        const SizedBox(width: 12),
-        Text(
-          title,
-          style: const TextStyle(
-            fontSize: 18,
-            fontWeight: FontWeight.bold,
-            color: Colors.white,
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildCategoryChart() {
-    return Container(
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: Colors.black,
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: const Color(0xFF2A2A2A), width: 1),
-        boxShadow: const [
-          BoxShadow(
-            color: Colors.black26,
-            blurRadius: 10,
-            offset: Offset(0, 5),
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Text(
-            "توزيع الفيديوهات",
-            style: TextStyle(
-              fontSize: 16,
-              fontWeight: FontWeight.bold,
-              color: Colors.white,
-            ),
-          ),
-          const SizedBox(height: 20),
-          SizedBox(
-            height: 200,
-            child: ListView.builder(
-              physics: const BouncingScrollPhysics(),
-              padding: EdgeInsets.zero,
-              itemCount: stats['videos']['byCategory'].length,
-              itemBuilder: (context, index) {
-                var category = stats['videos']['byCategory'][index];
-                final percentage = (category['count'] / stats['videos']['total'] * 100).toStringAsFixed(1);
-                
-                return Padding(
-                  padding: const EdgeInsets.only(bottom: 16),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Text(
-                            category['category']['name'],
-                            style: const TextStyle(
-                              fontWeight: FontWeight.w500,
-                              color: Colors.white,
-                            ),
-                          ),
-                          Text(
-                            "$percentage%",
-                            style: TextStyle(
-                              fontWeight: FontWeight.bold,
-                              color: _getColorFromGradient(index),
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 8),
-                      Stack(
-                        children: [
-                          Container(
-                            height: 8,
-                            width: double.infinity,
-                            decoration: BoxDecoration(
-                              color: const Color(0xFF2A2A2A),
-                              borderRadius: BorderRadius.circular(10),
-                            ),
-                          ),
-                          Container(
-                            height: 8,
-                            width: MediaQuery.of(context).size.width * 
-                                  (category['count'] / stats['videos']['total']) * 0.8, // 0.8 to account for padding
-                            decoration: BoxDecoration(
-                              gradient: LinearGradient(
-                                colors: [
-                                  _getColorFromGradient(index),
-                                  _getColorFromGradient(index).withOpacity(0.7),
-                                ],
-                              ),
-                              borderRadius: BorderRadius.circular(10),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ],
-                  ),
-                );
-              },
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildMostViewedVideos() {
-    return SizedBox(
-      height: 240,
-      child: ListView.builder(
-        physics: const BouncingScrollPhysics(),
-        scrollDirection: Axis.horizontal,
-        itemCount: stats['videos']['mostViewed'].length,
-        itemBuilder: (context, index) {
-          var video = stats['videos']['mostViewed'][index];
-          return Container(
-            width: 200,
-            margin: const EdgeInsets.only(right: 16),
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(20),
-              color: Colors.black,
-              border: Border.all(color: const Color(0xFF2A2A2A), width: 1),
-              boxShadow: const [
-                BoxShadow(
-                  color: Colors.black26,
-                  blurRadius: 10,
-                  offset: Offset(0, 5),
-                ),
-              ],
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Stack(
-                  children: [
-                    ClipRRect(
-                      borderRadius: const BorderRadius.only(
-                        topLeft: Radius.circular(20),
-                        topRight: Radius.circular(20),
-                      ),
-                      child: Image.network(
-                        video['thumbnail'],
-                        height: 140,
-                        width: double.infinity,
-                        fit: BoxFit.cover,
-                        errorBuilder: (context, error, stackTrace) => Container(
-                          height: 140,
-                          color: Colors.grey[900],
-                          child: Center(
-                            child: Icon(Icons.broken_image, color: Colors.grey[700], size: 40),
-                          ),
-                        ),
-                      ),
-                    ),
-                    Positioned(
-                      right: 10,
-                      top: 10,
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-                        decoration: BoxDecoration(
-                          color: Colors.red,
-                          borderRadius: BorderRadius.circular(20),
-                          boxShadow: [
-                            BoxShadow(
-                              color: Colors.black.withOpacity(0.3),
-                              blurRadius: 5,
-                            ),
-                          ],
-                        ),
-                        child: Row(
-                          children: [
-                            const Icon(Icons.remove_red_eye, size: 12, color: Colors.white),
-                            const SizedBox(width: 5),
-                            Text(
-                              formatNumber(video['views']),
-                              style: const TextStyle(
-                                color: Colors.white,
-                                fontWeight: FontWeight.bold,
-                                fontSize: 12,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                    Positioned(
-                      left: 10,
-                      top: 10,
-                      child: Container(
-                        height: 36,
-                        width: 36,
-                        decoration: BoxDecoration(
-                          shape: BoxShape.circle,
-                          color: Colors.black.withOpacity(0.7),
-                          boxShadow: [
-                            BoxShadow(
-                              color: Colors.black.withOpacity(0.3),
-                              blurRadius: 5,
-                            ),
-                          ],
-                        ),
-                        child: Center(
-                          child: Text(
-                            "${index + 1}",
-                            style: TextStyle(
-                              color: index == 0 ? Colors.red : Colors.white,
-                              fontWeight: FontWeight.bold,
-                              fontSize: 16,
-                            ),
-                          ),
-                        ),
-                      ),
-                    ),
-                    Positioned(
-                      bottom: 0,
-                      left: 0,
-                      right: 0,
-                      child: Container(
-                        height: 40,
-                        decoration: BoxDecoration(
-                          gradient: LinearGradient(
-                            begin: Alignment.topCenter,
-                            end: Alignment.bottomCenter,
-                            colors: [
-                              Colors.transparent,
-                              Colors.black.withOpacity(0.8),
-                            ],
-                          ),
-                        ),
-                      ),
-                    ),
-                    Positioned(
-                      right: 10,
-                      bottom: 10,
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                        decoration: BoxDecoration(
-                          color: Colors.black.withOpacity(0.7),
-                          borderRadius: BorderRadius.circular(5),
-                        ),
-                        child: Text(
-                          formatDuration(video['duration'] ?? 0),
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 10,
-                          ),
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-                Padding(
-                  padding: const EdgeInsets.all(15),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        video['title'],
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(
-                          fontWeight: FontWeight.bold,
-                          color: Colors.white,
-                          fontSize: 14,
-                        ),
-                      ),
-                      const SizedBox(height: 8),
-                      Row(
-                        children: [
-                          const Icon(Icons.category, size: 14, color: Colors.grey),
-                          const SizedBox(width: 5),
-                          Expanded(
-                            child: Text(
-                              video['category'] ?? 'غير مصنف',
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: const TextStyle(
-                                color: Colors.grey,
-                                fontSize: 12,
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-          );
-        },
-      ),
-    );
-  }
-
-  Widget _buildPopularCategories() {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: Colors.black,
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: const Color(0xFF2A2A2A), width: 1),
-        boxShadow: const [
-          BoxShadow(
-            color: Colors.black26,
-            blurRadius: 10,
-            offset: Offset(0, 5),
-          ),
-        ],
-      ),
-      child: Wrap(
-        spacing: 8,
-        runSpacing: 8,
-        children: [
-          for (var i = 0; i < stats['categories']['mostPopular'].length; i++)
-            _buildCategoryChip(
-              stats['categories']['mostPopular'][i],
-              i,
-            ),
-        ],
-      ),
-    );
-  }
-  
-  Widget _buildCategoryChip(dynamic category, int index) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 15, vertical: 10),
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          colors: [
-            _getColorFromGradient(index),
-            _getColorFromGradient(index).withOpacity(0.7),
-          ],
-        ),
-        borderRadius: BorderRadius.circular(30),
-        boxShadow: [
-          BoxShadow(
-            color: _getColorFromGradient(index).withOpacity(0.3),
-            blurRadius: 8,
-            offset: const Offset(0, 3),
-          ),
-        ],
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Text(
-            category['category']['name'],
-            style: const TextStyle(
-              color: Colors.white,
-              fontWeight: FontWeight.bold,
-              fontSize: 13,
-            ),
-          ),
-          const SizedBox(width: 8),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-            decoration: BoxDecoration(
-              color: Colors.white.withOpacity(0.2),
-              borderRadius: BorderRadius.circular(10),
-            ),
-            child: Text(
-              category['count'].toString(),
-              style: const TextStyle(
-                color: Colors.white,
-                fontWeight: FontWeight.bold,
-                fontSize: 12,
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildVideosSummaryCard() {
-    final total = stats['videos']['total'];
-    final today = stats['videos']['addedToday'] ?? 0;
-    final week = stats['videos']['addedThisWeek'] ?? 0;
-    final month = stats['videos']['addedThisMonth'] ?? 0;
-    
-    return Container(
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        gradient: const LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [
-            Color(0xFFFF416C),
-            Color(0xFFFF4B2B),
-          ],
-        ),
-        borderRadius: BorderRadius.circular(20),
-        boxShadow: [
-          BoxShadow(
-            color: const Color(0xFFFF416C).withOpacity(0.3),
-            blurRadius: 15,
-            offset: const Offset(0, 5),
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              const Text(
-                "إحصائيات الفيديوهات",
-                style: TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.white,
-                ),
-              ),
-              Container(
-                padding: const EdgeInsets.all(8),
-                decoration: BoxDecoration(
-                  color: Colors.white.withOpacity(0.2),
-                  borderRadius: BorderRadius.circular(10),
-                ),
-                child: const Icon(
-                  Icons.video_library,
-                  color: Colors.white,
-                  size: 20,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 15),
-          Text(
-            "$total",
-            style: const TextStyle(
-              fontSize: 40,
-              fontWeight: FontWeight.bold,
-              color: Colors.white,
-            ),
-          ),
-          Text(
-            "إجمالي الفيديوهات",
-            style: TextStyle(
-              fontSize: 14,
-              color: Colors.white.withOpacity(0.8),
-            ),
-          ),
-          const SizedBox(height: 20),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              _buildVideoStatItem("اليوم", today),
-              _buildVideoStatItem("هذا الأسبوع", week),
-              _buildVideoStatItem("هذا الشهر", month),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildVideoStatItem(String label, int count) {
-    return Column(
-      children: [
-        Text(
-          "$count",
-          style: const TextStyle(
-            fontSize: 24,
-            fontWeight: FontWeight.bold,
-            color: Colors.white,
-          ),
-        ),
-        const SizedBox(height: 4),
-        Text(
-          label,
-          style: TextStyle(
-            fontSize: 12,
-            color: Colors.white.withOpacity(0.8),
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildRecentlyAddedVideos() {
-    return Container(
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: Colors.black,
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: const Color(0xFF2A2A2A), width: 1),
-        boxShadow: const [
-          BoxShadow(
-            color: Colors.black26,
-            blurRadius: 10,
-            offset: Offset(0, 5),
-          ),
-        ],
-      ),
-      child: Column(
-        children: [
-          for (var i = 0; i < stats['videos']['recentlyAdded'].length; i++)
-            _buildVideoListItem(stats['videos']['recentlyAdded'][i], i),
-          if (stats['videos']['recentlyAdded'].isEmpty)
-            const Padding(
-              padding: EdgeInsets.all(16),
-              child: Text(
-                'لا توجد فيديوهات حديثة',
-                style: TextStyle(color: Colors.white70),
-                textAlign: TextAlign.center,
-              ),
-            ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildVideoListItem(dynamic video, int index) {
-    return Container(
-      margin: EdgeInsets.only(bottom: index < stats['videos']['recentlyAdded'].length - 1 ? 16 : 0),
-      child: Row(
-        children: [
-          Stack(
-            children: [
-              ClipRRect(
-                borderRadius: BorderRadius.circular(12),
-                child: Image.network(
-                  video['thumbnail'],
-                  width: 80,
-                  height: 80,
-                  fit: BoxFit.cover,
-                  errorBuilder: (context, error, stackTrace) => Container(
-                    width: 80,
-                    height: 80,
-                    color: Colors.grey[900],
-                    child: Center(
-                      child: Icon(Icons.broken_image, color: Colors.grey[700]),
-                    ),
-                  ),
-                ),
-              ),
-              Positioned(
-                right: 5,
-                bottom: 5,
-                child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                  decoration: BoxDecoration(
-                    color: Colors.black.withOpacity(0.7),
-                    borderRadius: BorderRadius.circular(4),
-                  ),
-                  child: Text(
-                    formatDuration(video['duration'] ?? 0),
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 10,
-                    ),
-                  ),
-                ),
-              ),
-              Positioned.fill(
-                child: ClipRRect(
-                  borderRadius: BorderRadius.circular(12),
-                  child: Material(
-                    color: Colors.transparent,
-                    child: InkWell(
-                      onTap: () {
-                        // تفاعل لمشاهدة الفيديو
-                      },
-                      splashColor: Colors.red.withOpacity(0.3),
-                      highlightColor: Colors.red.withOpacity(0.1),
-                      child: Container(
-                        alignment: Alignment.center,
-                        child: Container(
-                          padding: const EdgeInsets.all(8),
-                          decoration: BoxDecoration(
-                            color: Colors.red.withOpacity(0.8),
-                            shape: BoxShape.circle,
-                          ),
-                          child: const Icon(
-                            Icons.play_arrow,
-                            color: Colors.white,
-                            size: 16,
-                          ),
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(width: 16),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  video['title'],
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
+                    color: gradient[0],
                     fontWeight: FontWeight.bold,
-                    color: Colors.white,
-                    fontSize: 14,
+                    fontSize: 12,
                   ),
-                ),
-                const SizedBox(height: 5),
-                Row(
-                  children: [
-                    const Icon(Icons.calendar_today, size: 12, color: Colors.grey),
-                    const SizedBox(width: 4),
-                    Text(
-                      formatDate(video['createdAt']),
-                      style: const TextStyle(
-                        color: Colors.grey,
-                        fontSize: 12,
-                      ),
-                    ),
-                    const SizedBox(width: 10),
-                    const Icon(Icons.remove_red_eye, size: 12, color: Colors.grey),
-                    const SizedBox(width: 4),
-                    Text(
-                      "${video['views'] ?? 0} مشاهدة",
-                      style: const TextStyle(
-                        color: Colors.grey,
-                        fontSize: 12,
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 5),
-                Row(
-                  children: [
-                    const Icon(Icons.category, size: 12, color: Colors.grey),
-                    const SizedBox(width: 4),
-                    Text(
-                      video['category'] ?? 'غير مصنف',
-                      style: const TextStyle(
-                        color: Colors.grey,
-                        fontSize: 12,
-                      ),
-                    ),
-                  ],
                 ),
               ],
             ),
-          ),
-          const Icon(Icons.more_vert, color: Colors.grey),
-        ],
+            SizedBox(height: 15),
+            Text(
+              value,
+              style: TextStyle(
+                fontSize: 24,
+                fontWeight: FontWeight.bold,
+                color: Colors.white,
+              ),
+            ),
+            SizedBox(height: 5),
+            Text(
+              title,
+              style: TextStyle(
+                fontSize: 14,
+                color: Colors.white.withOpacity(0.6),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
 
-  Widget _buildMostViewedVideosGrid() {
+  Widget _buildVideosSection() {
+    final byCategory = stats?['videos']?['byCategory'] as List? ?? [];
+    final mostViewed = stats?['videos']?['mostViewed'] as List? ?? [];
+    final recentlyAdded = stats?['videos']?['recentlyAdded'] as List? ?? [];
+
     return Container(
       decoration: BoxDecoration(
-        color: Colors.black,
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: const Color(0xFF2A2A2A), width: 1),
-        boxShadow: const [
+        color: Color(0xFF161A30),
+        borderRadius: BorderRadius.circular(24),
+        boxShadow: [
           BoxShadow(
-            color: Colors.black26,
-            blurRadius: 10,
+            color: Colors.black.withOpacity(0.2),
+            blurRadius: 15,
             offset: Offset(0, 5),
           ),
         ],
       ),
-      child: GridView.builder(
-        physics: const NeverScrollableScrollPhysics(),
-        shrinkWrap: true,
-        padding: const EdgeInsets.all(20),
-        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-          crossAxisCount: 2,
-          childAspectRatio: 0.8,
-          crossAxisSpacing: 15,
-          mainAxisSpacing: 15,
-        ),
-        itemCount: stats['videos']['mostViewed'].length.clamp(0, 6),
-        itemBuilder: (context, index) {
-          var video = stats['videos']['mostViewed'][index];
-          return Container(
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(12),
-              color: const Color(0xFF1C1C1C),
-              boxShadow: const [
-                BoxShadow(
-                  color: Colors.black12,
-                  blurRadius: 5,
-                  offset: Offset(0, 3),
-                ),
-              ],
-            ),
-            child: ClipRRect(
-              borderRadius: BorderRadius.circular(12),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Stack(
-                    children: [
-                      Image.network(
-                        video['thumbnail'],
-                        height: 120,
-                        width: double.infinity,
-                        fit: BoxFit.cover,
-                        errorBuilder: (context, error, stackTrace) => Container(
-                          height: 120,
-                          color: Colors.grey[900],
-                          child: Center(
-                            child: Icon(Icons.broken_image, color: Colors.grey[700]),
-                          ),
-                        ),
-                      ),
-                      Positioned(
-                        top: 8,
-                        right: 8,
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                          decoration: BoxDecoration(
-                            color: Colors.red,
-                            borderRadius: BorderRadius.circular(4),
-                          ),
-                          child: Row(
-                            children: [
-                              const Icon(Icons.trending_up, size: 10, color: Colors.white),
-                              const SizedBox(width: 2),
-                              Text(
-                                formatNumber(video['views']),
-                                style: const TextStyle(
-                                  color: Colors.white,
-                                  fontWeight: FontWeight.bold,
-                                  fontSize: 10,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ),
-                      Positioned(
-                        bottom: 8,
-                        right: 8,
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                          decoration: BoxDecoration(
-                            color: Colors.black.withOpacity(0.7),
-                            borderRadius: BorderRadius.circular(4),
-                          ),
-                          child: Text(
-                            formatDuration(video['duration'] ?? 0),
-                            style: const TextStyle(
-                              color: Colors.white,
-                              fontSize: 10,
-                            ),
-                          ),
-                        ),
-                      ),
-                      Positioned.fill(
-                        child: Material(
-                          color: Colors.transparent,
-                          child: InkWell(
-                            onTap: () {
-                              // تفاعل لمشاهدة الفيديو
-                            },
-                            splashColor: Colors.red.withOpacity(0.3),
-                            highlightColor: Colors.red.withOpacity(0.1),
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                  Padding(
-                    padding: const EdgeInsets.all(10),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          video['title'],
-                          maxLines: 2,
-                          overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(
-                            fontWeight: FontWeight.bold,
-                            color: Colors.white,
-                            fontSize: 12,
-                          ),
-                        ),
-                        const SizedBox(height: 5),
-                        Row(
-                          children: [
-                            const Icon(Icons.category, size: 10, color: Colors.grey),
-                            const SizedBox(width: 2),
-                            Expanded(
-                              child: Text(
-                                video['category'] ?? 'غير مصنف',
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                                style: const TextStyle(
-                                  color: Colors.grey,
-                                  fontSize: 10,
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          );
-        },
-      ),
-    );
-  }
-
-  Widget _buildCategoriesSummaryCard() {
-    final total = stats['categories']['total'];
-    final mostUsed = stats['categories']['mostPopular'].isNotEmpty
-        ? stats['categories']['mostPopular'][0]['category']['name']
-        : 'غير متاح';
-    
-    return Container(
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        gradient: const LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [
-            Color(0xFFFF8008),
-            Color(0xFFFFC837),
-          ],
-        ),
-        borderRadius: BorderRadius.circular(20),
-        boxShadow: [
-          BoxShadow(
-            color: const Color(0xFFFF8008).withOpacity(0.3),
-            blurRadius: 15,
-            offset: const Offset(0, 5),
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              const Text(
-                "إحصائيات التصنيفات",
+      child: Padding(
+        padding: EdgeInsets.all(25),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            _buildSectionTitle('إحصائيات الفيديوهات', Icons.play_circle_filled_rounded, gradients[0]),
+            SizedBox(height: 30),
+            
+            // Category Distribution Chart
+            if (byCategory.isNotEmpty) ...[
+              Text(
+                'توزيع الفيديوهات حسب القسم',
                 style: TextStyle(
                   fontSize: 18,
                   fontWeight: FontWeight.bold,
                   color: Colors.white,
                 ),
               ),
+              SizedBox(height: 20),
               Container(
-                padding: const EdgeInsets.all(8),
+                height: 300,
+                padding: EdgeInsets.all(20),
                 decoration: BoxDecoration(
-                  color: Colors.white.withOpacity(0.2),
-                  borderRadius: BorderRadius.circular(10),
+                  gradient: LinearGradient(
+                    colors: [Color(0xFF1F2335), Color(0xFF131629)],
+                    begin: Alignment.topCenter,
+                    end: Alignment.bottomCenter,
+                  ),
+                  borderRadius: BorderRadius.circular(20),
+                  border: Border.all(
+                    color: Colors.white.withOpacity(0.05),
+                    width: 1,
+                  ),
                 ),
-                child: const Icon(
-                  Icons.category,
-                  color: Colors.white,
-                  size: 20,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 15),
-          Text(
-            "$total",
-            style: const TextStyle(
-              fontSize: 40,
-              fontWeight: FontWeight.bold,
-              color: Colors.white,
-            ),
-          ),
-          Text(
-            "إجمالي التصنيفات",
-            style: TextStyle(
-              fontSize: 14,
-              color: Colors.white.withOpacity(0.8),
-            ),
-          ),
-          const SizedBox(height: 20),
-          Container(
-            padding: const EdgeInsets.all(12),
-            decoration: BoxDecoration(
-              color: Colors.white.withOpacity(0.2),
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: Row(
-              children: [
-                const Icon(
-                  Icons.star,
-                  color: Colors.white,
-                  size: 18,
-                ),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        "التصنيف الأكثر استخداماً",
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: Colors.white.withOpacity(0.8),
-                        ),
-                      ),
-                      const SizedBox(height: 2),
-                      Text(
-                        mostUsed,
-                        style: const TextStyle(
+                child: PieChart(
+                  PieChartData(
+                    sectionsSpace: 3,
+                    centerSpaceRadius: 50,
+                    sections: List.generate(byCategory.length, (index) {
+                      final item = byCategory[index];
+                      final count = item['count'] ?? 0;
+                      final categoryName = item['category']?['name'] ?? 'غير معروف';
+                      
+                      final colors = [
+                        Color(0xFFFF6B6B),
+                        Color(0xFF4ECDC4),
+                        Color(0xFFFFD166),
+                        Color(0xFF118AB2),
+                        Color(0xFF06D6A0),
+                        Color(0xFFEF476F),
+                        Color(0xFF073B4C),
+                      ];
+                      
+                      return PieChartSectionData(
+                        color: colors[index % colors.length],
+                        value: count.toDouble(),
+                        title: '$count',
+                        radius: 120,
+                        titleStyle: TextStyle(
                           fontSize: 16,
                           fontWeight: FontWeight.bold,
                           color: Colors.white,
                         ),
-                      ),
-                    ],
+                        badgeWidget: _Badge(
+                          categoryName,
+                          colors[index % colors.length],
+                          count,
+                        ),
+                        badgePositionPercentageOffset: 1.05,
+                      );
+                    }),
+                    borderData: FlBorderData(show: false),
                   ),
                 ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildDetailedCategoryDistribution() {
-    return Container(
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: Colors.black,
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: const Color(0xFF2A2A2A), width: 1),
-        boxShadow: const [
-          BoxShadow(
-            color: Colors.black26,
-            blurRadius: 10,
-            offset: Offset(0, 5),
-          ),
-        ],
-      ),
-      child: PieChartWidget(stats: stats),
-    );
-  }
-
-  Widget _buildCategoriesList() {
-    return Container(
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: Colors.black,
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: const Color(0xFF2A2A2A), width: 1),
-        boxShadow: const [
-          BoxShadow(
-            color: Colors.black26,
-            blurRadius: 10,
-            offset: Offset(0, 5),
-          ),
-        ],
-      ),
-      child: Column(
-        children: [
-          for (var i = 0; i < stats['categories']['mostPopular'].length; i++)
-            _buildCategoryListItem(stats['categories']['mostPopular'][i], i),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildCategoryListItem(dynamic category, int index) {
-    final percentage = (category['count'] / stats['videos']['total'] * 100).toStringAsFixed(1);
-    
-    return Container(
-      margin: EdgeInsets.only(bottom: index < stats['categories']['mostPopular'].length - 1 ? 16 : 0),
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: const Color(0xFF1C1C1C),
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(
-          color: _getColorFromGradient(index).withOpacity(0.3),
-          width: 1,
-        ),
-      ),
-      child: Row(
-        children: [
-          Container(
-            padding: const EdgeInsets.all(12),
-            decoration: BoxDecoration(
-              color: _getColorFromGradient(index).withOpacity(0.2),
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: Icon(
-              Icons.folder,
-              color: _getColorFromGradient(index),
-              size: 24,
-            ),
-          ),
-          const SizedBox(width: 16),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  category['category']['name'],
-                  style: const TextStyle(
-                    fontWeight: FontWeight.bold,
-                    color: Colors.white,
-                    fontSize: 16,
-                  ),
-                ),
-                const SizedBox(height: 5),
-                Row(
-                  children: [
-                    Text(
-                      "${category['count']} فيديو",
-                      style: const TextStyle(
-                        color: Colors.white70,
-                        fontSize: 12,
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    const Text(
-                      "•",
-                      style: TextStyle(
-                        color: Colors.white30,
-                        fontSize: 12,
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    Text(
-                      "$percentage% من المحتوى",
-                      style: TextStyle(
-                        color: _getColorFromGradient(index),
-                        fontSize: 12,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                  ],
-                ),
-              ],
-            ),
-          ),
-          Container(
-            height: 36,
-            width: 36,
-            decoration: BoxDecoration(
-              color: const Color(0xFF252525),
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: const Center(
-              child: Icon(
-                Icons.chevron_right,
-                color: Colors.white70,
-                size: 20,
               ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildComplaintsSummaryCard() {
-    final total = stats['complaints']?['total'] ?? 0;
-    final pending = stats['complaints']?['pending'] ?? 0;
-    final resolved = stats['complaints']?['resolved'] ?? 0;
-    
-    return Container(
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        gradient: const LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [
-            Color(0xFFFF512F),
-            Color(0xFFDD2476),
-          ],
-        ),
-        borderRadius: BorderRadius.circular(20),
-        boxShadow: [
-          BoxShadow(
-            color: const Color(0xFFFF512F).withOpacity(0.3),
-            blurRadius: 15,
-            offset: const Offset(0, 5),
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              const Text(
-                "إحصائيات الشكاوى",
+              SizedBox(height: 30),
+            ],
+            
+            // Most Viewed Videos
+            if (mostViewed.isNotEmpty) ...[
+              Text(
+                'الفيديوهات الأكثر مشاهدة',
                 style: TextStyle(
                   fontSize: 18,
                   fontWeight: FontWeight.bold,
                   color: Colors.white,
                 ),
               ),
-              Container(
-                padding: const EdgeInsets.all(8),
-                decoration: BoxDecoration(
-                  color: Colors.white.withOpacity(0.2),
-                  borderRadius: BorderRadius.circular(10),
-                ),
-                child: const Icon(
-                  Icons.report_problem,
-                  color: Colors.white,
-                  size: 20,
+              SizedBox(height: 20),
+              SizedBox(
+                height: 220,
+                child: ListView.builder(
+                  scrollDirection: Axis.horizontal,
+                  physics: BouncingScrollPhysics(),
+                  itemCount: mostViewed.length,
+                  itemBuilder: (context, index) {
+                    final video = mostViewed[index];
+                    final views = video['views'] ?? 0;
+                    
+                    return Container(
+                      width: 200,
+                      margin: EdgeInsets.only(right: 15),
+                      clipBehavior: Clip.antiAlias,
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          colors: [Color(0xFF1F2335), Color(0xFF131629)],
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
+                        ),
+                        borderRadius: BorderRadius.circular(20),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withOpacity(0.2),
+                            blurRadius: 10,
+                            offset: Offset(0, 5),
+                          ),
+                        ],
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Container(
+                            height: 120,
+                            decoration: BoxDecoration(
+                              gradient: LinearGradient(
+                                colors: gradients[index % gradients.length],
+                                begin: Alignment.topLeft,
+                                end: Alignment.bottomRight,
+                              ),
+                            ),
+                            child: Stack(
+                              alignment: Alignment.center,
+                              children: [
+                                // تأثير تموجات عصرية
+                                CustomPaint(
+                                  size: Size(200, 120),
+                                  painter: WavePainter(
+                                    color: Colors.white.withOpacity(0.1),
+                                    wavesCount: 3,
+                                  ),
+                                ),
+                                Icon(
+                                  Icons.play_circle_fill_rounded,
+                                  size: 50,
+                                  color: Colors.white,
+                                ),
+                                Positioned(
+                                  top: 10,
+                                  right: 10,
+                                  child: Container(
+                                    padding: EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                                    decoration: BoxDecoration(
+                                      color: Colors.black.withOpacity(0.6),
+                                      borderRadius: BorderRadius.circular(30),
+                                    ),
+                                    child: Row(
+                                      children: [
+                                        Icon(
+                                          Icons.visibility,
+                                          color: Colors.white,
+                                          size: 16,
+                                        ),
+                                        SizedBox(width: 5),
+                                        Text(
+                                          '$views',
+                                          style: TextStyle(
+                                            color: Colors.white,
+                                            fontWeight: FontWeight.bold,
+                                            fontSize: 12,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          Padding(
+                            padding: EdgeInsets.all(15),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  video['title'] ?? 'بدون عنوان',
+                                  style: TextStyle(
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.bold,
+                                    color: Colors.white,
+                                  ),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                                SizedBox(height: 12),
+                                Row(
+                                  children: [
+                                    Container(
+                                      width: 4,
+                                      height: 4,
+                                      decoration: BoxDecoration(
+                                        color: Colors.grey,
+                                        shape: BoxShape.circle,
+                                      ),
+                                    ),
+                                    SizedBox(width: 8),
+                                    Expanded(
+                                      child: Text(
+                                        'القسم: ${video['categoryName'] ?? 'غير مصنف'}',
+                                        style: TextStyle(
+                                          fontSize: 12,
+                                          color: Colors.grey,
+                                        ),
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                                SizedBox(height: 8),
+                                LinearProgressIndicator(
+                                  value: math.min(1.0, views / 1000),
+                                  backgroundColor: Colors.grey.withOpacity(0.2),
+                                  valueColor: AlwaysStoppedAnimation<Color>(gradients[index % gradients.length][0]),
+                                  borderRadius: BorderRadius.circular(10),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                    );
+                  },
                 ),
               ),
+              SizedBox(height: 30),
             ],
-          ),
-          const SizedBox(height: 15),
-          Text(
-            "$total",
-            style: const TextStyle(
-              fontSize: 40,
-              fontWeight: FontWeight.bold,
-              color: Colors.white,
-            ),
-          ),
-          Text(
-            "إجمالي الشكاوى",
-            style: TextStyle(
-              fontSize: 14,
-              color: Colors.white.withOpacity(0.8),
-            ),
-          ),
-          const SizedBox(height: 20),
-          Row(
-            children: [
-              Expanded(
-                child: Container(
-                  padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(
-                    color: Colors.white.withOpacity(0.2),
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: Column(
-                    children: [
-                      Text(
-                        "$pending",
-                        style: const TextStyle(
-                          fontSize: 24,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.white,
-                        ),
-                      ),
-                      const SizedBox(height: 4),
-                      Text(
-                        "قيد الانتظار",
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: Colors.white.withOpacity(0.8),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-              const SizedBox(width: 16),
-              Expanded(
-                child: Container(
-                  padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(
-                    color: Colors.white.withOpacity(0.2),
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: Column(
-                    children: [
-                      Text(
-                        "$resolved",
-                        style: const TextStyle(
-                          fontSize: 24,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.white,
-                        ),
-                      ),
-                      const SizedBox(height: 4),
-                      Text(
-                        "تم الحل",
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: Colors.white.withOpacity(0.8),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildRecentComplaints() {
-    return Container(
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: Colors.black,
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: const Color(0xFF2A2A2A), width: 1),
-        boxShadow: const [
-          BoxShadow(
-            color: Colors.black26,
-            blurRadius: 10,
-            offset: Offset(0, 5),
-          ),
-        ],
-      ),
-      child: Column(
-        children: [
-          for (var i = 0; i < stats['complaints']['recent'].length; i++)
-            _buildComplaintListItem(stats['complaints']['recent'][i], i),
-          if (stats['complaints']['recent'].isEmpty)
-            const Center(
-              child: Padding(
-                padding: EdgeInsets.all(20),
-                child: Column(
-                  children: [
-                    Icon(
-                      Icons.check_circle_outline,
-                      color: Colors.green,
-                      size: 48,
-                    ),
-                    SizedBox(height: 16),
-                    Text(
-                      'لا توجد شكاوى حديثة',
-                      style: TextStyle(
-                        color: Colors.white70,
-                        fontSize: 16,
-                      ),
-                      textAlign: TextAlign.center,
-                    ),
-                  ],
-                ),
-              ),
-            ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildComplaintListItem(dynamic complaint, int index) {
-  final bool resolved = complaint['status'] == 'resolved';
-  final title = complaint['title'] ?? 'بدون عنوان';
-  final createdAt = complaint['createdAt'] ?? '';
-  
-  return Container(
-    margin: EdgeInsets.only(bottom: index < stats['complaints']['recent'].length - 1 ? 16 : 0),
-    padding: const EdgeInsets.all(16),
-    decoration: BoxDecoration(
-      color: const Color(0xFF1C1C1C),
-      borderRadius: BorderRadius.circular(16),
-      border: Border.all(
-        color: resolved ? Colors.green.withOpacity(0.3) : Colors.red.withOpacity(0.3),
-        width: 1,
-      ),
-    ),
-    child: Row(
-      children: [
-        Container(
-          padding: const EdgeInsets.all(12),
-          decoration: BoxDecoration(
-            color: (resolved ? Colors.green : Colors.red).withOpacity(0.2),
-            borderRadius: BorderRadius.circular(12),
-          ),
-          child: Icon(
-            resolved ? Icons.check_circle : Icons.report_problem,
-            color: resolved ? Colors.green : Colors.red,
-            size: 24,
-          ),
-        ),
-        const SizedBox(width: 16),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
+            
+            // Recently Added Videos
+            if (recentlyAdded.isNotEmpty) ...[
               Text(
-                title,
-                style: const TextStyle(
+                'الفيديوهات المضافة حديثاً',
+                style: TextStyle(
+                  fontSize: 18,
                   fontWeight: FontWeight.bold,
                   color: Colors.white,
-                  fontSize: 16,
                 ),
               ),
-              const SizedBox(height: 5),
-              Row(
-                children: [
-                  const Icon(Icons.calendar_today, size: 12, color: Colors.grey),
-                  const SizedBox(width: 4),
-                  Text(
-                    formatDate(createdAt),
-                    style: const TextStyle(
-                      color: Colors.white70,
-                      fontSize: 12,
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  const Text(
-                    "•",
-                    style: TextStyle(
-                      color: Colors.white30,
-                      fontSize: 12,
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                    decoration: BoxDecoration(
-                      color: (resolved ? Colors.green : Colors.red).withOpacity(0.2),
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                    child: Text(
-                      resolved ? "تم الحل" : "قيد الانتظار",
-                      style: TextStyle(
-                        color: resolved ? Colors.green : Colors.red,
-                        fontSize: 10,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ],
-          ),
-        ),
-        Container(
-          height: 36,
-          width: 36,
-          decoration: BoxDecoration(
-            color: const Color(0xFF252525),
-            borderRadius: BorderRadius.circular(12),
-          ),
-          child: const Center(
-            child: Icon(
-              Icons.chevron_right,
-              color: Colors.white70,
-              size: 20,
-            ),
-          ),
-        ),
-      ],
-    ),
-  );
-}
-
-  // مكون مخطط دائري لعرض توزيع الفيديوهات حسب التصنيف
-  Widget PieChartWidget({required Map<String, dynamic> stats}) {
-    return SizedBox(
-      height: 300,
-      child: Stack(
-        alignment: Alignment.center,
-        children: [
-          const Text(
-            "توزيع التصنيفات",
-            style: TextStyle(
-              fontSize: 14,
-              fontWeight: FontWeight.bold,
-              color: Colors.white,
-            ),
-          ),
-          CustomPaint(
-            size: const Size(double.infinity, 300),
-            painter: PieChartPainter(
-              categories: stats['videos']['byCategory'],
-              total: stats['videos']['total'],
-            ),
-          ),
-          Positioned(
-            bottom: 10,
-            left: 0,
-            right: 0,
-            child: SizedBox(
-              height: 70,
-              child: ListView.builder(
-                scrollDirection: Axis.horizontal,
-                itemCount: stats['videos']['byCategory'].length,
+              SizedBox(height: 20),
+              GridView.builder(
+                shrinkWrap: true,
+                physics: NeverScrollableScrollPhysics(),
+                gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                  crossAxisCount: 2,
+                  crossAxisSpacing: 15,
+                  mainAxisSpacing: 15,
+                  childAspectRatio: 1.0,
+                ),
+                itemCount: math.min(6, recentlyAdded.length),
                 itemBuilder: (context, index) {
-                  var category = stats['videos']['byCategory'][index];
-                  final percentage = (category['count'] / stats['videos']['total'] * 100).toStringAsFixed(1);
-                  
+                  final video = recentlyAdded[index];
                   return Container(
-                    margin: const EdgeInsets.only(right: 8),
-                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                    clipBehavior: Clip.antiAlias,
                     decoration: BoxDecoration(
-                      color: const Color(0xFF1C1C1C),
-                      borderRadius: BorderRadius.circular(8),
-                      border: Border.all(
-                        color: _getColorFromGradient(index).withOpacity(0.3),
-                        width: 1,
-                      ),
+                      color: Color(0xFF1F2335),
+                      borderRadius: BorderRadius.circular(20),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withOpacity(0.1),
+                          blurRadius: 10,
+                          offset: Offset(0, 4),
+                        ),
+                      ],
                     ),
-                    child: Row(
+                    child: Stack(
                       children: [
-                        Container(
-                          width: 12,
-                          height: 12,
-                          decoration: BoxDecoration(
-                            color: _getColorFromGradient(index),
-                            shape: BoxShape.circle,
+                        Positioned.fill(
+                          child: Container(
+                            decoration: BoxDecoration(
+                              gradient: LinearGradient(
+                                colors: gradients[index % gradients.length],
+                                begin: Alignment.topCenter,
+                                end: Alignment.bottomCenter,
+                              ),
+                            ),
                           ),
                         ),
-                        const SizedBox(width: 8),
-                        Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              category['category']['name'],
-                              style: const TextStyle(
-                                color: Colors.white,
-                                fontSize: 12,
+                        Positioned.fill(
+                          child: CustomPaint(
+                            painter: GridPainter(
+                              color: Colors.white.withOpacity(0.05),
+                              gridSize: 10,
+                            ),
+                          ),
+                        ),
+                        Center(
+                          child: Icon(
+                            Icons.play_arrow_rounded,
+                            size: 50,
+                            color: Colors.white.withOpacity(0.9),
+                          ),
+                        ),
+                        Positioned(
+                          bottom: 0,
+                          left: 0,
+                          right: 0,
+                          child: Container(
+                            padding: EdgeInsets.all(15),
+                            decoration: BoxDecoration(
+                              gradient: LinearGradient(
+                                colors: [
+                                  Colors.black.withOpacity(0.9),
+                                  Colors.black.withOpacity(0),
+                                ],
+                                begin: Alignment.bottomCenter,
+                                end: Alignment.topCenter,
+                              ),
+                            ),
+                            child: Text(
+                              video['title'] ?? 'بدون عنوان',
+                              style: TextStyle(
+                                fontSize: 14,
                                 fontWeight: FontWeight.bold,
+                                color: Colors.white,
                               ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
                             ),
-                            Text(
-                              "$percentage%",
-                              style: const TextStyle(
-                                color: Colors.white70,
-                                fontSize: 10,
-                              ),
+                          ),
+                        ),
+                        Positioned(
+                          top: 10,
+                          right: 10,
+                          child: Container(
+                            padding: EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                            decoration: BoxDecoration(
+                              color: Colors.black.withOpacity(0.6),
+                              borderRadius: BorderRadius.circular(30),
                             ),
-                          ],
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(
+                                  Icons.access_time_rounded,
+                                  color: Colors.white,
+                                  size: 12,
+                                ),
+                                SizedBox(width: 5),
+                                Text(
+                                  'جديد',
+                                  style: TextStyle(
+                                    color: Colors.white,
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 12,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
                         ),
                       ],
                     ),
                   );
                 },
               ),
-            ),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+  
+  Widget _buildCategoriesSection() {
+    final mostPopular = stats?['categories']?['mostPopular'] as List? ?? [];
+    final recentlyUpdated = stats?['categories']?['recentlyUpdated'] as List? ?? [];
+    
+    return Container(
+      decoration: BoxDecoration(
+        color: Color(0xFF161A30),
+        borderRadius: BorderRadius.circular(24),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.2),
+            blurRadius: 15,
+            offset: Offset(0, 5),
           ),
         ],
+      ),
+      child: Padding(
+        padding: EdgeInsets.all(25),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            _buildSectionTitle('إحصائيات الأقسام', Icons.category_rounded, gradients[1]),
+            SizedBox(height: 30),
+            
+            // Most Popular Categories
+            if (mostPopular.isNotEmpty) ...[
+              Text(
+                'الأقسام الأكثر استخداماً',
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.white,
+                ),
+              ),
+              SizedBox(height: 20),
+              Container(
+                height: 300,
+                padding: EdgeInsets.all(20),
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    colors: [Color(0xFF1F2335), Color(0xFF131629)],
+                    begin: Alignment.topCenter,
+                    end: Alignment.bottomCenter,
+                  ),
+                  borderRadius: BorderRadius.circular(20),
+                  border: Border.all(
+                    color: Colors.white.withOpacity(0.05),
+                    width: 1,
+                  ),
+                ),
+                child: BarChart(
+                  BarChartData(
+                    alignment: BarChartAlignment.spaceAround,
+                    maxY: mostPopular.isNotEmpty 
+                        ? (mostPopular.map((e) => e['count'] ?? 0).reduce((a, b) => a > b ? a : b) * 1.2).toDouble()
+                        : 10,
+                    barTouchData: BarTouchData(
+                      enabled: true,
+                      touchTooltipData: BarTouchTooltipData(
+                        tooltipBgColor: Colors.white.withOpacity(0.8),
+                        tooltipPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                        tooltipMargin: 8,
+                        getTooltipItem: (group, groupIndex, rod, rodIndex) {
+                          if (groupIndex >= mostPopular.length) return null;
+                          final category = mostPopular[groupIndex];
+                          final categoryName = category['category']?['name'] ?? 'غير معروف';
+                          final count = category['count'] ?? 0;
+                          return BarTooltipItem(
+                            '$categoryName: $count',
+                            TextStyle(
+                              color: Colors.black,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          );
+                        },
+                      ),
+                    ),
+                    titlesData: FlTitlesData(
+                      show: true,
+                      bottomTitles: AxisTitles(
+                        sideTitles: SideTitles(
+                          showTitles: true,
+                          reservedSize: 60,
+                          getTitlesWidget: (value, meta) {
+                            if (value.toInt() >= mostPopular.length) return Text('');
+                            final category = mostPopular[value.toInt()];
+                            final name = category['category']?['name'] ?? '';
+                            return Padding(
+                              padding: const EdgeInsets.only(top: 8.0),
+                              child: Text(
+                                name,
+                                style: TextStyle(
+                                  color: Colors.white70,
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                                textAlign: TextAlign.center,
+                              ),
+                            );
+                          },
+                        ),
+                      ),
+                      leftTitles: AxisTitles(
+                        sideTitles: SideTitles(
+                          showTitles: true,
+                          reservedSize: 40,
+                          getTitlesWidget: (value, meta) {
+                            if (value == 0) return Text('');
+                            return Padding(
+                              padding: const EdgeInsets.only(right: 8.0),
+                              child: Text(
+                                value.toInt().toString(),
+                                style: TextStyle(
+                                  color: Colors.white70,
+                                  fontSize: 12,
+                                ),
+                              ),
+                            );
+                          },
+                        ),
+                      ),
+                      topTitles: AxisTitles(sideTitles: SideTitles(showTitles: false)),
+                      rightTitles: AxisTitles(sideTitles: SideTitles(showTitles: false)),
+                    ),
+                    gridData: FlGridData(
+                      show: true,
+                      drawVerticalLine: false,
+                      horizontalInterval: 5,
+                      getDrawingHorizontalLine: (value) {
+                        return FlLine(
+                          color: Colors.white.withOpacity(0.1),
+                          strokeWidth: 1,
+                          dashArray: [5, 5],
+                        );
+                      },
+                    ),
+                    borderData: FlBorderData(show: false),
+                    barGroups: List.generate(
+                      mostPopular.length,
+                      (index) {
+                        final category = mostPopular[index];
+                        final count = category['count'] ?? 0;
+                        
+                        final colors = [
+                          Color(0xFFFF6B6B),
+                          Color(0xFF4ECDC4),
+                          Color(0xFFFFD166),
+                          Color(0xFF118AB2),
+                          Color(0xFF06D6A0),
+                          Color(0xFFEF476F),
+                        ];
+                        
+                        return BarChartGroupData(
+                          x: index,
+                          barRods: [
+                            BarChartRodData(
+                              toY: count.toDouble(),
+                              gradient: LinearGradient(
+                                colors: [
+                                  colors[index % colors.length],
+                                  colors[index % colors.length].withOpacity(0.6),
+                                ],
+                                begin: Alignment.topCenter,
+                                end: Alignment.bottomCenter,
+                              ),
+                              width: 18,
+                              borderRadius: BorderRadius.circular(5),
+                              backDrawRodData: BackgroundBarChartRodData(
+                                show: true,
+                                toY: mostPopular.isNotEmpty 
+                                    ? (mostPopular.map((e) => e['count'] ?? 0).reduce((a, b) => a > b ? a : b) * 1.2).toDouble()
+                                    : 10,
+                                color: Colors.white.withOpacity(0.05),
+                              ),
+                            ),
+                          ],
+                        );
+                      },
+                    ),
+                  ),
+                ),
+              ),
+              SizedBox(height: 30),
+            ],
+            
+            // Recently Updated Categories
+            if (recentlyUpdated.isNotEmpty) ...[
+              Text(
+                'الأقسام المحدثة مؤخراً',
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.white,
+                ),
+              ),
+              SizedBox(height: 20),
+              Container(
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    colors: [Color(0xFF1F2335), Color(0xFF131629)],
+                    begin: Alignment.topCenter,
+                    end: Alignment.bottomCenter,
+                  ),
+                  borderRadius: BorderRadius.circular(20),
+                  border: Border.all(
+                    color: Colors.white.withOpacity(0.05),
+                    width: 1,
+                  ),
+                ),
+                child: ListView.builder(
+                  shrinkWrap: true,
+                  physics: NeverScrollableScrollPhysics(),
+                  itemCount: math.min(5, recentlyUpdated.length),
+                  itemBuilder: (context, index) {
+                    final category = recentlyUpdated[index];
+                    final colors = [
+                      Color(0xFFFF6B6B),
+                      Color(0xFF4ECDC4),
+                      Color(0xFFFFD166),
+                      Color(0xFF118AB2),
+                      Color(0xFF06D6A0),
+                    ];
+                    
+                    return Container(
+                      margin: EdgeInsets.only(bottom: index == recentlyUpdated.length - 1 ? 0 : 10),
+                      decoration: BoxDecoration(
+                        color: Colors.white.withOpacity(0.03),
+                        borderRadius: BorderRadius.circular(15),
+                      ),
+                      child: ListTile(
+                        contentPadding: EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+                        leading: Container(
+                          width: 50,
+                          height: 50,
+                          decoration: BoxDecoration(
+                            color: colors[index % colors.length].withOpacity(0.1),
+                            shape: BoxShape.circle,
+                            border: Border.all(
+                              color: colors[index % colors.length].withOpacity(0.5),
+                              width: 2,
+                            ),
+                          ),
+                          child: Center(
+                            child: Text(
+                              '${index + 1}',
+                              style: TextStyle(
+                                color: colors[index % colors.length],
+                                fontWeight: FontWeight.bold,
+                                fontSize: 18,
+                              ),
+                            ),
+                          ),
+                        ),
+                        title: Text(
+                          category['name'] ?? 'غير معروف',
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        subtitle: Padding(
+                          padding: const EdgeInsets.only(top: 8.0),
+                          child: Text(
+                            'آخر تحديث: ${DateTime.now().toString().substring(0, 10)}',
+                            style: TextStyle(
+                              color: Colors.white.withOpacity(0.5),
+                              fontSize: 12,
+                            ),
+                          ),
+                        ),
+                        trailing: Container(
+                          width: 40,
+                          height: 40,
+                          decoration: BoxDecoration(
+                            color: Colors.white.withOpacity(0.05),
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                          child: Icon(
+                            Icons.update_rounded,
+                            color: colors[index % colors.length],
+                          ),
+                        ),
+                      ),
+                    );
+                  },
+                ),
+              ),
+            ],
+          ],
+        ),
       ),
     );
   }
 
-  Color _getColorFromGradient(int index) {
-    final colors = [
-      const Color(0xFFFF416C), // احمر
-      const Color(0xFFFF8008), // برتقالي
-      const Color(0xFFFFC837), // اصفر
-      const Color(0xFF1DB954), // اخضر
-      const Color(0xFF00BFFF), // ازرق فاتح
-      const Color(0xFF4158D0), // ازرق
-      const Color(0xFF6A3093), // بنفسجي
-      const Color(0xFFDD2476), // وردي
-      const Color(0xFFFF3E00), // احمر برتقالي
-    ];
-    return colors[index % colors.length];
-  }
-
-  // دوال مساعدة
-  String formatNumber(int number) {
-    if (number >= 1000000) {
-      return '${(number / 1000000).toStringAsFixed(1)}م';
-    } else if (number >= 1000) {
-      return '${(number / 1000).toStringAsFixed(1)}ك';
-    } else {
-      return '$number';
-    }
-  }
-
-  String formatDuration(int seconds) {
-    final minutes = seconds ~/ 60;
-    final remainingSeconds = seconds % 60;
-    return '$minutes:${remainingSeconds.toString().padLeft(2, '0')}';
-  }
-
-String formatDate(String? dateString) {
-  if (dateString == null || dateString.isEmpty) return 'غير محدد';
-  
-  try {
-    final date = DateTime.parse(dateString);
-    final now = DateTime.now();
-    final difference = now.difference(date);
-    
-    if (difference.inDays == 0) {
-      if (difference.inHours == 0) {
-        return 'منذ ${difference.inMinutes} دقيقة';
-      } else {
-        return 'منذ ${difference.inHours} ساعة';
-      }
-    } else if (difference.inDays < 30) {
-      return 'منذ ${difference.inDays} يوم';
-    } else {
-      return '${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}';
-    }
-  } catch (e) {
-    return dateString.length > 10 ? dateString.substring(0, 10) : dateString;
+  Widget _buildSectionTitle(String title, IconData icon, List<Color> gradient) {
+    return Row(
+      children: [
+        Container(
+          padding: EdgeInsets.all(12),
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              colors: gradient,
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+            ),
+            borderRadius: BorderRadius.circular(12),
+            boxShadow: [
+              BoxShadow(
+                color: gradient[0].withOpacity(0.3),
+                blurRadius: 10,
+                offset: Offset(0, 5),
+              ),
+            ],
+          ),
+          child: Icon(icon, color: Colors.white, size: 24),
+        ),
+        SizedBox(width: 15),
+        Text(
+          title,
+          style: TextStyle(
+            fontSize: 22,
+            fontWeight: FontWeight.bold,
+            color: Colors.white,
+            letterSpacing: 0.5,
+          ),
+        ),
+      ],
+    );
   }
 }
-  
-  int min(int a, int b) => a < b ? a : b;
+
+// ليبل دائري للمخطط الدائري
+class _Badge extends StatelessWidget {
+  final String text;
+  final Color color;
+  final int count;
+
+  _Badge(this.text, this.color, this.count);
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedContainer(
+      duration: Duration(milliseconds: 250),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(10),
+        color: color,
+      ),
+      padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      child: Text(
+        text,
+        style: TextStyle(
+          color: Colors.white,
+          fontSize: 12,
+          fontWeight: FontWeight.bold,
+        ),
+      ),
+    );
+  }
 }
 
-// رسام المخطط الدائري
-class PieChartPainter extends CustomPainter {
-  final List<dynamic> categories;
-  final int total;
-  
-  PieChartPainter({required this.categories, required this.total});
+// مرسام تموجات للخلفية
+class WavePainter extends CustomPainter {
+  final Color color;
+  final int wavesCount;
+
+  WavePainter({required this.color, this.wavesCount = 5});
 
   @override
   void paint(Canvas canvas, Size size) {
-    final center = Offset(size.width / 2, size.height / 2 - 20);
-    final radius = min(size.width, size.height) * 0.3;
+    final paint = Paint()
+      ..color = color
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 1.5;
+
+    final height = size.height;
+    final width = size.width;
     
-    var startAngle = 0.0;
-    
-    for (var i = 0; i < categories.length; i++) {
-      final category = categories[i];
-      final sweepAngle = (category['count'] / total) * 2 * 3.14159;
+    for (int i = 0; i < wavesCount; i++) {
+      final path = Path();
+      final waveHeight = height / 15;
+      final offset = i * (height / wavesCount);
       
-      final paint = Paint()
-        ..color = _getColorForIndex(i)
-        ..style = PaintingStyle.fill;
+      path.moveTo(0, offset);
       
-      canvas.drawArc(
-        Rect.fromCircle(center: center, radius: radius),
-        startAngle,
-        sweepAngle,
-        true,
-        paint,
-      );
+      for (int x = 0; x < width; x += 30) {
+        path.quadraticBezierTo(
+          x + 15, offset + waveHeight, 
+          x + 30, offset
+        );
+      }
       
-      // Draw highlight for segments
-      final highlightPaint = Paint()
-        ..color = Colors.white.withOpacity(0.1)
-        ..style = PaintingStyle.stroke
-        ..strokeWidth = 2;
-      
-      canvas.drawArc(
-        Rect.fromCircle(center: center, radius: radius),
-        startAngle,
-        sweepAngle,
-        true,
-        highlightPaint,
-      );
-      
-      startAngle += sweepAngle;
+      canvas.drawPath(path, paint);
     }
-    
-    // Draw center hole
-    final centerPaint = Paint()
-      ..color = const Color(0xFF121212)
-      ..style = PaintingStyle.fill;
-    
-    canvas.drawCircle(center, radius * 0.6, centerPaint);
   }
 
   @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) => true;
-  
-  Color _getColorForIndex(int index) {
-    final colors = [
-      const Color(0xFFFF416C), // احمر
-      const Color(0xFFFF8008), // برتقالي
-      const Color(0xFFFFC837), // اصفر
-      const Color(0xFF1DB954), // اخضر
-      const Color(0xFF00BFFF), // ازرق فاتح
-      const Color(0xFF4158D0), // ازرق
-      const Color(0xFF6A3093), // بنفسجي
-      const Color(0xFFDD2476), // وردي
-      const Color(0xFFFF3E00), // احمر برتقالي
-    ];
-    return colors[index % colors.length];
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
+}
+
+// مرسام الشبكة للخلفية
+class GridPainter extends CustomPainter {
+  final Color color;
+  final double gridSize;
+
+  GridPainter({required this.color, required this.gridSize});
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()
+      ..color = color
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 0.5;
+
+    for (double i = 0; i < size.width; i += gridSize) {
+      canvas.drawLine(Offset(i, 0), Offset(i, size.height), paint);
+    }
+
+    for (double i = 0; i < size.height; i += gridSize) {
+      canvas.drawLine(Offset(0, i), Offset(size.width, i), paint);
+    }
   }
+
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }

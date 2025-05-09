@@ -14,20 +14,19 @@ class CategoriesScreen extends StatefulWidget {
 class _CategoriesScreenState extends State<CategoriesScreen> {
   final CategoryApiService _apiService = CategoryApiService();
   late Future<List<Category>> _categoriesFuture;
-  bool _isLoading = false;
   final ImagePicker _picker = ImagePicker();
 
-  // تعريف الألوان الرئيسية للتطبيق
+  // ألوان التطبيق
   final Color _primaryColor = Colors.black;
-  final Color _accentColor = Colors.orangeAccent;
-  final Color _cardColor = Color(0xFF212121);
-  final Color _backgroundColor = Color(0xFF121212);
+  final Color _accentColor = Colors.red;
+  final Color _cardColor = Colors.grey[900]!;
+  final Color _backgroundColor = Colors.black;
   final Color _textColor = Colors.white;
 
   @override
   void initState() {
     super.initState();
-    _categoriesFuture = _apiService.getAllCategories();
+    _refreshCategories();
   }
 
   void _refreshCategories() {
@@ -37,11 +36,37 @@ class _CategoriesScreenState extends State<CategoriesScreen> {
   }
 
   Future<File?> _pickImage() async {
-    final XFile? pickedFile = await _picker.pickImage(source: ImageSource.gallery);
-    if (pickedFile != null) {
-      return File(pickedFile.path);
+    try {
+      final XFile? pickedFile =
+          await _picker.pickImage(source: ImageSource.gallery);
+      if (pickedFile != null) {
+        return File(pickedFile.path);
+      }
+      return null;
+    } catch (e) {
+      _showErrorSnackbar('حدث خطأ أثناء اختيار الصورة');
+      return null;
     }
-    return null;
+  }
+
+  void _showSuccessSnackbar(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+        backgroundColor: Colors.green,
+        duration: const Duration(seconds: 2),
+      ),
+    );
+  }
+
+  void _showErrorSnackbar(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+        backgroundColor: Colors.red,
+        duration: const Duration(seconds: 2),
+      ),
+    );
   }
 
   @override
@@ -86,7 +111,7 @@ class _CategoriesScreenState extends State<CategoriesScreen> {
         elevatedButtonTheme: ElevatedButtonThemeData(
           style: ElevatedButton.styleFrom(
             backgroundColor: _accentColor,
-            foregroundColor: Colors.black,
+            foregroundColor: Colors.white,
             padding: EdgeInsets.symmetric(horizontal: 20, vertical: 12),
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(10),
@@ -104,7 +129,8 @@ class _CategoriesScreenState extends State<CategoriesScreen> {
       ),
       child: Scaffold(
         appBar: AppBar(
-          title: const Text('إدارة الأقسام', style: TextStyle(fontWeight: FontWeight.bold)),
+          title: const Text('إدارة الأقسام',
+              style: TextStyle(fontWeight: FontWeight.bold)),
           actions: [
             IconButton(
               icon: const Icon(Icons.add_circle_outline, size: 26),
@@ -116,75 +142,75 @@ class _CategoriesScreenState extends State<CategoriesScreen> {
             ),
           ],
         ),
-        body: _isLoading
-            ? Center(
-                child: CircularProgressIndicator(color: _accentColor),
-              )
-            : Padding(
-                padding: const EdgeInsets.all(8.0),
-                child: FutureBuilder<List<Category>>(
-                  future: _categoriesFuture,
-                  builder: (context, snapshot) {
-                    if (snapshot.connectionState == ConnectionState.waiting) {
-                      return Center(child: CircularProgressIndicator(color: _accentColor));
-                    } else if (snapshot.hasError) {
-                      return Center(
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Icon(Icons.error_outline, color: Colors.red, size: 60),
-                            SizedBox(height: 16),
-                            Text(
-                              'حدث خطأ أثناء جلب البيانات',
-                              style: TextStyle(fontSize: 18, color: _textColor),
-                            ),
-                            SizedBox(height: 16),
-                            ElevatedButton(
-                              onPressed: _refreshCategories,
-                              child: Text('إعادة المحاولة'),
-                            ),
-                          ],
-                        ),
-                      );
-                    } else if (!snapshot.hasData || snapshot.data!.isEmpty) {
-                      return Center(
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Icon(Icons.category_outlined, color: _accentColor, size: 60),
-                            SizedBox(height: 16),
-                            Text(
-                              'لا توجد أقسام متاحة',
-                              style: TextStyle(fontSize: 18, color: _textColor),
-                            ),
-                            SizedBox(height: 16),
-                            ElevatedButton(
-                              onPressed: () => _showAddMainCategoryDialog(context),
-                              child: Text('إضافة قسم جديد'),
-                            ),
-                          ],
-                        ),
-                      );
-                    } else {
-                      return ListView.builder(
-                        itemCount: snapshot.data!.length,
-                        itemBuilder: (context, index) {
-                          return Padding(
-                            padding: const EdgeInsets.only(bottom: 8.0),
-                            child: CategoryItem(
-                              category: snapshot.data![index],
-                              onRefresh: _refreshCategories,
-                              apiService: _apiService,
-                              accentColor: _accentColor,
-                              pickImage: _pickImage,
-                            ),
-                          );
-                        },
-                      );
-                    }
+        body: Padding(
+          padding: const EdgeInsets.all(8.0),
+          child: FutureBuilder<List<Category>>(
+            future: _categoriesFuture,
+            builder: (context, snapshot) {
+              if (snapshot.connectionState == ConnectionState.waiting) {
+                return Center(
+                    child: CircularProgressIndicator(color: _accentColor));
+              } else if (snapshot.hasError) {
+                return Center(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(Icons.error_outline, color: Colors.red, size: 60),
+                      SizedBox(height: 16),
+                      Text(
+                        'حدث خطأ أثناء جلب البيانات',
+                        style: TextStyle(fontSize: 18, color: _textColor),
+                      ),
+                      SizedBox(height: 16),
+                      ElevatedButton(
+                        onPressed: _refreshCategories,
+                        child: Text('إعادة المحاولة'),
+                      ),
+                    ],
+                  ),
+                );
+              } else if (!snapshot.hasData || snapshot.data!.isEmpty) {
+                return Center(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(Icons.category_outlined,
+                          color: _accentColor, size: 60),
+                      SizedBox(height: 16),
+                      Text(
+                        'لا توجد أقسام متاحة',
+                        style: TextStyle(fontSize: 18, color: _textColor),
+                      ),
+                      SizedBox(height: 16),
+                      ElevatedButton(
+                        onPressed: () => _showAddMainCategoryDialog(context),
+                        child: Text('إضافة قسم جديد'),
+                      ),
+                    ],
+                  ),
+                );
+              } else {
+                return ListView.builder(
+                  itemCount: snapshot.data!.length,
+                  itemBuilder: (context, index) {
+                    return Padding(
+                      padding: const EdgeInsets.only(bottom: 8.0),
+                      child: CategoryItem(
+                        category: snapshot.data![index],
+                        onRefresh: _refreshCategories,
+                        apiService: _apiService,
+                        accentColor: _accentColor,
+                        pickImage: _pickImage,
+                        showSuccessSnackbar: _showSuccessSnackbar,
+                        showErrorSnackbar: _showErrorSnackbar,
+                      ),
+                    );
                   },
-                ),
-              ),
+                );
+              }
+            },
+          ),
+        ),
       ),
     );
   }
@@ -193,145 +219,142 @@ class _CategoriesScreenState extends State<CategoriesScreen> {
     final nameController = TextEditingController();
     final descriptionController = TextEditingController();
     File? selectedImage;
+    bool isLoading = false;
 
     showDialog(
       context: context,
       builder: (context) {
-        return StatefulBuilder(
-          builder: (context, setState) {
-            return AlertDialog(
-              title: Row(
+        return StatefulBuilder(builder: (context, setState) {
+          return AlertDialog(
+            title: Row(
+              children: [
+                Icon(Icons.add_box, color: _accentColor),
+                SizedBox(width: 10),
+                Text('إضافة قسم رئيسي', style: TextStyle(color: _textColor)),
+              ],
+            ),
+            content: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Icon(Icons.add_box, color: _accentColor),
-                  SizedBox(width: 10),
-                  Text('إضافة قسم رئيسي', style: TextStyle(color: _textColor)),
+                  TextField(
+                    controller: nameController,
+                    decoration: InputDecoration(
+                      labelText: 'اسم القسم',
+                      prefixIcon: Icon(Icons.title, color: _accentColor),
+                    ),
+                  ),
+                  SizedBox(height: 16),
+                  TextField(
+                    controller: descriptionController,
+                    maxLines: 3,
+                    decoration: InputDecoration(
+                      labelText: 'الوصف',
+                      prefixIcon: Icon(Icons.description, color: _accentColor),
+                      alignLabelWithHint: true,
+                    ),
+                  ),
+                  SizedBox(height: 16),
+                  Text(
+                    'صورة القسم',
+                    style: TextStyle(fontSize: 16, color: Colors.grey),
+                  ),
+                  SizedBox(height: 8),
+                  GestureDetector(
+                    onTap: () async {
+                      final image = await _pickImage();
+                      if (image != null) {
+                        setState(() {
+                          selectedImage = image;
+                        });
+                      }
+                    },
+                    child: Container(
+                      height: 120,
+                      width: double.infinity,
+                      decoration: BoxDecoration(
+                        color: Colors.grey[800],
+                        borderRadius: BorderRadius.circular(10),
+                        border:
+                            Border.all(color: _accentColor.withOpacity(0.5)),
+                      ),
+                      child: selectedImage != null
+                          ? ClipRRect(
+                              borderRadius: BorderRadius.circular(10),
+                              child: Image.file(
+                                selectedImage!,
+                                fit: BoxFit.cover,
+                              ),
+                            )
+                          : Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Icon(
+                                  Icons.add_photo_alternate,
+                                  size: 40,
+                                  color: _accentColor,
+                                ),
+                                SizedBox(height: 8),
+                                Text(
+                                  'اضغط لاختيار صورة',
+                                  style: TextStyle(color: Colors.grey),
+                                ),
+                              ],
+                            ),
+                    ),
+                  ),
                 ],
               ),
-              content: SingleChildScrollView(
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    TextField(
-                      controller: nameController,
-                      decoration: InputDecoration(
-                        labelText: 'اسم القسم',
-                        prefixIcon: Icon(Icons.title, color: _accentColor),
-                      ),
-                    ),
-                    SizedBox(height: 16),
-                    TextField(
-                      controller: descriptionController,
-                      maxLines: 3,
-                      decoration: InputDecoration(
-                        labelText: 'الوصف',
-                        prefixIcon: Icon(Icons.description, color: _accentColor),
-                        alignLabelWithHint: true,
-                      ),
-                    ),
-                    SizedBox(height: 16),
-                    Text(
-                      'صورة القسم',
-                      style: TextStyle(fontSize: 16, color: Colors.grey),
-                    ),
-                    SizedBox(height: 8),
-                    GestureDetector(
-                      onTap: () async {
-                        final image = await _pickImage();
-                        if (image != null) {
-                          setState(() {
-                            selectedImage = image;
-                          });
+            ),
+            actions: [
+              TextButton(
+                onPressed: isLoading ? null : () => Navigator.pop(context),
+                child: Text('إلغاء'),
+              ),
+              ElevatedButton.icon(
+                icon: isLoading
+                    ? SizedBox(
+                        width: 20,
+                        height: 20,
+                        child: CircularProgressIndicator(
+                          color: Colors.white,
+                          strokeWidth: 2,
+                        ),
+                      )
+                    : Icon(Icons.save),
+                label: isLoading ? Text('جاري الحفظ...') : Text('حفظ'),
+                onPressed: isLoading
+                    ? null
+                    : () async {
+                        if (nameController.text.trim().isEmpty) {
+                          _showErrorSnackbar('يرجى إدخال اسم القسم');
+                          return;
+                        }
+
+                        setState(() => isLoading = true);
+
+                        try {
+                          final newCategory = await _apiService.addMainCategory(
+                            name: nameController.text,
+                            description: descriptionController.text,
+                            imageFile: selectedImage,
+                          );
+
+                          _refreshCategories();
+                          Navigator.pop(context);
+                          _showSuccessSnackbar('تمت إضافة القسم بنجاح');
+                        } catch (e) {
+                          _showErrorSnackbar(
+                              'خطأ: ${e.toString().replaceAll('Exception: ', '')}');
+                        } finally {
+                          if (mounted) setState(() => isLoading = false);
                         }
                       },
-                      child: Container(
-                        height: 120,
-                        width: double.infinity,
-                        decoration: BoxDecoration(
-                          color: Colors.grey[800],
-                          borderRadius: BorderRadius.circular(10),
-                          border: Border.all(color: _accentColor.withOpacity(0.5)),
-                        ),
-                        child: selectedImage != null
-                            ? ClipRRect(
-                                borderRadius: BorderRadius.circular(10),
-                                child: Image.file(
-                                  selectedImage!,
-                                  fit: BoxFit.cover,
-                                ),
-                              )
-                            : Column(
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                children: [
-                                  Icon(
-                                    Icons.add_photo_alternate,
-                                    size: 40,
-                                    color: _accentColor,
-                                  ),
-                                  SizedBox(height: 8),
-                                  Text(
-                                    'اضغط لاختيار صورة',
-                                    style: TextStyle(color: Colors.grey),
-                                  ),
-                                ],
-                              ),
-                      ),
-                    ),
-                  ],
-                ),
               ),
-              actions: [
-                TextButton(
-                  onPressed: () => Navigator.pop(context),
-                  child: Text('إلغاء'),
-                ),
-                ElevatedButton.icon(
-                  icon: Icon(Icons.save),
-                  label: Text('حفظ'),
-                  onPressed: () async {
-                    if (nameController.text.trim().isEmpty) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(content: Text('يرجى إدخال اسم القسم')),
-                      );
-                      return;
-                    }
-                    
-                    setState(() {
-                      _isLoading = true;
-                    });
-                    
-                    try {
-                      await _apiService.addMainCategory(
-                        name: nameController.text,
-                        description: descriptionController.text,
-                        imageFile: selectedImage,
-                      );
-                      _refreshCategories();
-                      Navigator.pop(context);
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(
-                          content: Text('تمت إضافة القسم بنجاح'),
-                          backgroundColor: Colors.green,
-                        ),
-                      );
-                    } catch (e) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(
-                          content: Text('فشل في إضافة القسم: حاول مرة أخرى'),
-                          backgroundColor: Colors.red,
-                        ),
-                      );
-                    } finally {
-                      setState(() {
-                        _isLoading = false;
-                      });
-                    }
-                  },
-                ),
-              ],
-            );
-          }
-        );
+            ],
+          );
+        });
       },
     );
   }
@@ -343,6 +366,8 @@ class CategoryItem extends StatelessWidget {
   final CategoryApiService apiService;
   final Color accentColor;
   final Future<File?> Function() pickImage;
+  final Function(String) showSuccessSnackbar;
+  final Function(String) showErrorSnackbar;
 
   const CategoryItem({
     super.key,
@@ -351,6 +376,8 @@ class CategoryItem extends StatelessWidget {
     required this.apiService,
     required this.accentColor,
     required this.pickImage,
+    required this.showSuccessSnackbar,
+    required this.showErrorSnackbar,
   });
 
   @override
@@ -371,23 +398,47 @@ class CategoryItem extends StatelessWidget {
           maxLines: 2,
           overflow: TextOverflow.ellipsis,
         ),
-        trailing: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            IconButton(
-              icon: Icon(Icons.add_circle_outline, color: accentColor),
-              tooltip: 'إضافة قسم فرعي',
-              onPressed: () => _showAddSubcategoryDialog(context, category.id),
+        trailing: PopupMenuButton<String>(
+          icon: Icon(Icons.more_vert, color: accentColor),
+          onSelected: (value) async {
+            if (value == 'add') {
+              await _showAddSubcategoryDialog(context);
+            } else if (value == 'edit') {
+              await _showEditCategoryDialog(context);
+            } else if (value == 'delete') {
+              await _deleteCategory(context);
+            }
+          },
+          itemBuilder: (BuildContext context) => [
+            PopupMenuItem<String>(
+              value: 'add',
+              child: Row(
+                children: [
+                  Icon(Icons.add, color: accentColor),
+                  SizedBox(width: 8),
+                  Text('إضافة قسم فرعي'),
+                ],
+              ),
             ),
-            IconButton(
-              icon: Icon(Icons.edit, color: accentColor),
-              tooltip: 'تعديل القسم',
-              onPressed: () => _showEditCategoryDialog(context, category),
+            PopupMenuItem<String>(
+              value: 'edit',
+              child: Row(
+                children: [
+                  Icon(Icons.edit, color: accentColor),
+                  SizedBox(width: 8),
+                  Text('تعديل'),
+                ],
+              ),
             ),
-            IconButton(
-              icon: Icon(Icons.delete_outline, color: Colors.redAccent),
-              tooltip: 'حذف القسم',
-              onPressed: () => _deleteCategory(context, category.id),
+            PopupMenuItem<String>(
+              value: 'delete',
+              child: Row(
+                children: [
+                  Icon(Icons.delete, color: Colors.red),
+                  SizedBox(width: 8),
+                  Text('حذف', style: TextStyle(color: Colors.red)),
+                ],
+              ),
             ),
           ],
         ),
@@ -400,6 +451,8 @@ class CategoryItem extends StatelessWidget {
               apiService: apiService,
               accentColor: accentColor,
               pickImage: pickImage,
+              showSuccessSnackbar: showSuccessSnackbar,
+              showErrorSnackbar: showErrorSnackbar,
             ),
           );
         }).toList(),
@@ -445,309 +498,329 @@ class CategoryItem extends StatelessWidget {
     );
   }
 
-  void _showAddSubcategoryDialog(BuildContext context, String parentId) {
+  Future<void> _showAddSubcategoryDialog(BuildContext context) async {
     final nameController = TextEditingController();
     final descriptionController = TextEditingController();
     File? selectedImage;
+    bool dialogLoading = false;
 
-    showDialog(
+    await showDialog(
       context: context,
       builder: (context) {
-        return StatefulBuilder(
-          builder: (context, setState) {
-            return AlertDialog(
-              title: Row(
+        return StatefulBuilder(builder: (context, setState) {
+          return AlertDialog(
+            title: Row(
+              children: [
+                Icon(Icons.subdirectory_arrow_right, color: accentColor),
+                SizedBox(width: 10),
+                Text('إضافة قسم فرعي', style: TextStyle(color: Colors.white)),
+              ],
+            ),
+            content: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Icon(Icons.subdirectory_arrow_right, color: accentColor),
-                  SizedBox(width: 10),
-                  Text('إضافة قسم فرعي', style: TextStyle(color: Colors.white)),
+                  TextField(
+                    controller: nameController,
+                    decoration: InputDecoration(
+                      labelText: 'اسم القسم الفرعي',
+                      prefixIcon: Icon(Icons.title, color: accentColor),
+                    ),
+                  ),
+                  SizedBox(height: 16),
+                  TextField(
+                    controller: descriptionController,
+                    maxLines: 3,
+                    decoration: InputDecoration(
+                      labelText: 'الوصف',
+                      prefixIcon: Icon(Icons.description, color: accentColor),
+                      alignLabelWithHint: true,
+                    ),
+                  ),
+                  SizedBox(height: 16),
+                  Text(
+                    'صورة القسم',
+                    style: TextStyle(fontSize: 16, color: Colors.grey),
+                  ),
+                  SizedBox(height: 8),
+                  GestureDetector(
+                    onTap: () async {
+                      final image = await pickImage();
+                      if (image != null) {
+                        setState(() {
+                          selectedImage = image;
+                        });
+                      }
+                    },
+                    child: Container(
+                      height: 120,
+                      width: double.infinity,
+                      decoration: BoxDecoration(
+                        color: Colors.grey[800],
+                        borderRadius: BorderRadius.circular(10),
+                        border: Border.all(color: accentColor.withOpacity(0.5)),
+                      ),
+                      child: selectedImage != null
+                          ? ClipRRect(
+                              borderRadius: BorderRadius.circular(10),
+                              child: Image.file(
+                                selectedImage!,
+                                fit: BoxFit.cover,
+                              ),
+                            )
+                          : Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Icon(
+                                  Icons.add_photo_alternate,
+                                  size: 40,
+                                  color: accentColor,
+                                ),
+                                SizedBox(height: 8),
+                                Text(
+                                  'اضغط لاختيار صورة',
+                                  style: TextStyle(color: Colors.grey),
+                                ),
+                              ],
+                            ),
+                    ),
+                  ),
                 ],
               ),
-              content: SingleChildScrollView(
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    TextField(
-                      controller: nameController,
-                      decoration: InputDecoration(
-                        labelText: 'اسم القسم الفرعي',
-                        prefixIcon: Icon(Icons.title, color: accentColor),
-                      ),
-                    ),
-                    SizedBox(height: 16),
-                    TextField(
-                      controller: descriptionController,
-                      maxLines: 3,
-                      decoration: InputDecoration(
-                        labelText: 'الوصف',
-                        prefixIcon: Icon(Icons.description, color: accentColor),
-                        alignLabelWithHint: true,
-                      ),
-                    ),
-                    SizedBox(height: 16),
-                    Text(
-                      'صورة القسم',
-                      style: TextStyle(fontSize: 16, color: Colors.grey),
-                    ),
-                    SizedBox(height: 8),
-                    GestureDetector(
-                      onTap: () async {
-                        final image = await pickImage();
-                        if (image != null) {
+            ),
+            actions: [
+              TextButton(
+                onPressed: dialogLoading ? null : () => Navigator.pop(context),
+                child: Text('إلغاء'),
+              ),
+              ElevatedButton.icon(
+                icon: dialogLoading
+                    ? SizedBox(
+                        width: 20,
+                        height: 20,
+                        child: CircularProgressIndicator(
+                          color: Colors.white,
+                          strokeWidth: 2,
+                        ),
+                      )
+                    : Icon(Icons.save),
+                label: dialogLoading ? Text('جاري الحفظ...') : Text('حفظ'),
+                onPressed: dialogLoading
+                    ? null
+                    : () async {
+                        if (nameController.text.trim().isEmpty) {
+                          showErrorSnackbar('يرجى إدخال اسم القسم الفرعي');
+                          return;
+                        }
+
+                        setState(() {
+                          dialogLoading = true;
+                        });
+
+                        try {
+                          await apiService.addSubcategory(
+                            name: nameController.text,
+                            description: descriptionController.text,
+                            parentId: category.id,
+                            imageFile: selectedImage,
+                          );
+                          onRefresh();
+                          Navigator.pop(context);
+                          showSuccessSnackbar('تمت إضافة القسم الفرعي بنجاح');
+                        } catch (e) {
+                          showErrorSnackbar(
+                              'فشل في إضافة القسم الفرعي: حاول مرة أخرى');
+                        } finally {
                           setState(() {
-                            selectedImage = image;
+                            dialogLoading = false;
                           });
                         }
                       },
-                      child: Container(
-                        height: 120,
-                        width: double.infinity,
-                        decoration: BoxDecoration(
-                          color: Colors.grey[800],
-                          borderRadius: BorderRadius.circular(10),
-                          border: Border.all(color: accentColor.withOpacity(0.5)),
-                        ),
-                        child: selectedImage != null
-                            ? ClipRRect(
-                                borderRadius: BorderRadius.circular(10),
-                                child: Image.file(
-                                  selectedImage!,
-                                  fit: BoxFit.cover,
-                                ),
-                              )
-                            : Column(
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                children: [
-                                  Icon(
-                                    Icons.add_photo_alternate,
-                                    size: 40,
-                                    color: accentColor,
-                                  ),
-                                  SizedBox(height: 8),
-                                  Text(
-                                    'اضغط لاختيار صورة',
-                                    style: TextStyle(color: Colors.grey),
-                                  ),
-                                ],
-                              ),
-                      ),
-                    ),
-                  ],
-                ),
               ),
-              actions: [
-                TextButton(
-                  onPressed: () => Navigator.pop(context),
-                  child: Text('إلغاء'),
-                ),
-                ElevatedButton.icon(
-                  icon: Icon(Icons.save),
-                  label: Text('حفظ'),
-                  onPressed: () async {
-                    if (nameController.text.trim().isEmpty) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(content: Text('يرجى إدخال اسم القسم الفرعي')),
-                      );
-                      return;
-                    }
-                    
-                    try {
-                      await apiService.addSubcategory(
-                        name: nameController.text,
-                        description: descriptionController.text,
-                        parentId: parentId,
-                        imageFile: selectedImage,
-                      );
-                      onRefresh();
-                      Navigator.pop(context);
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(
-                          content: Text('تمت إضافة القسم الفرعي بنجاح'),
-                          backgroundColor: Colors.green,
-                        ),
-                      );
-                    } catch (e) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(
-                          content: Text('فشل في إضافة القسم الفرعي: حاول مرة أخرى'),
-                          backgroundColor: Colors.red,
-                        ),
-                      );
-                    }
-                  },
-                ),
-              ],
-            );
-          }
-        );
+            ],
+          );
+        });
       },
     );
   }
 
-  void _showEditCategoryDialog(BuildContext context, Category category) {
+  Future<void> _showEditCategoryDialog(BuildContext context) async {
     final nameController = TextEditingController(text: category.name);
-    final descriptionController = TextEditingController(text: category.description);
+    final descriptionController =
+        TextEditingController(text: category.description);
     File? selectedImage;
+    bool dialogLoading = false;
 
-    showDialog(
+    await showDialog(
       context: context,
       builder: (context) {
-        return StatefulBuilder(
-          builder: (context, setState) {
-            return AlertDialog(
-              title: Row(
+        return StatefulBuilder(builder: (context, setState) {
+          return AlertDialog(
+            title: Row(
+              children: [
+                Icon(Icons.edit, color: accentColor),
+                SizedBox(width: 10),
+                Text('تعديل القسم', style: TextStyle(color: Colors.white)),
+              ],
+            ),
+            content: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Icon(Icons.edit, color: accentColor),
-                  SizedBox(width: 10),
-                  Text('تعديل القسم', style: TextStyle(color: Colors.white)),
-                ],
-              ),
-              content: SingleChildScrollView(
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    TextField(
-                      controller: nameController,
-                      decoration: InputDecoration(
-                        labelText: 'اسم القسم',
-                        prefixIcon: Icon(Icons.title, color: accentColor),
-                      ),
+                  TextField(
+                    controller: nameController,
+                    decoration: InputDecoration(
+                      labelText: 'اسم القسم',
+                      prefixIcon: Icon(Icons.title, color: accentColor),
                     ),
-                    SizedBox(height: 16),
-                    TextField(
-                      controller: descriptionController,
-                      maxLines: 3,
-                      decoration: InputDecoration(
-                        labelText: 'الوصف',
-                        prefixIcon: Icon(Icons.description, color: accentColor),
-                        alignLabelWithHint: true,
-                      ),
+                  ),
+                  SizedBox(height: 16),
+                  TextField(
+                    controller: descriptionController,
+                    maxLines: 3,
+                    decoration: InputDecoration(
+                      labelText: 'الوصف',
+                      prefixIcon: Icon(Icons.description, color: accentColor),
+                      alignLabelWithHint: true,
                     ),
-                    SizedBox(height: 16),
-                    Text(
-                      'صورة القسم',
-                      style: TextStyle(fontSize: 16, color: Colors.grey),
-                    ),
-                    SizedBox(height: 8),
-                    Row(
-                      children: [
-                        Expanded(
-                          child: GestureDetector(
-                            onTap: () async {
-                              final image = await pickImage();
-                              if (image != null) {
-                                setState(() {
-                                  selectedImage = image;
-                                });
-                              }
-                            },
-                            child: Container(
-                              height: 120,
-                              decoration: BoxDecoration(
-                                color: Colors.grey[800],
-                                borderRadius: BorderRadius.circular(10),
-                                border: Border.all(color: accentColor.withOpacity(0.5)),
-                              ),
-                              child: selectedImage != null
-                                  ? ClipRRect(
-                                      borderRadius: BorderRadius.circular(10),
-                                      child: Image.file(
-                                        selectedImage!,
-                                        fit: BoxFit.cover,
-                                      ),
-                                    )
-                                  : category.image != null && category.image!.isNotEmpty
-                                      ? ClipRRect(
-                                          borderRadius: BorderRadius.circular(10),
-                                          child: Image.network(
-                                            category.image!,
-                                            fit: BoxFit.cover,
-                                            errorBuilder: (context, error, stackTrace) {
-                                              return Center(
-                                                child: Icon(
-                                                  Icons.broken_image,
-                                                  color: Colors.grey,
-                                                  size: 40,
-                                                ),
-                                              );
-                                            },
-                                          ),
-                                        )
-                                      : Column(
-                                          mainAxisAlignment: MainAxisAlignment.center,
-                                          children: [
-                                            Icon(
-                                              Icons.add_photo_alternate,
-                                              size: 40,
-                                              color: accentColor,
-                                            ),
-                                            SizedBox(height: 8),
-                                            Text(
-                                              'اضغط لاختيار صورة',
-                                              style: TextStyle(color: Colors.grey),
-                                            ),
-                                          ],
-                                        ),
+                  ),
+                  SizedBox(height: 16),
+                  Text(
+                    'صورة القسم',
+                    style: TextStyle(fontSize: 16, color: Colors.grey),
+                  ),
+                  SizedBox(height: 8),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: GestureDetector(
+                          onTap: () async {
+                            final image = await pickImage();
+                            if (image != null) {
+                              setState(() {
+                                selectedImage = image;
+                              });
+                            }
+                          },
+                          child: Container(
+                            height: 120,
+                            decoration: BoxDecoration(
+                              color: Colors.grey[800],
+                              borderRadius: BorderRadius.circular(10),
+                              border: Border.all(
+                                  color: accentColor.withOpacity(0.5)),
                             ),
+                            child: selectedImage != null
+                                ? ClipRRect(
+                                    borderRadius: BorderRadius.circular(10),
+                                    child: Image.file(
+                                      selectedImage!,
+                                      fit: BoxFit.cover,
+                                    ),
+                                  )
+                                : category.image != null &&
+                                        category.image!.isNotEmpty
+                                    ? ClipRRect(
+                                        borderRadius: BorderRadius.circular(10),
+                                        child: Image.network(
+                                          category.image!,
+                                          fit: BoxFit.cover,
+                                          errorBuilder:
+                                              (context, error, stackTrace) {
+                                            return Center(
+                                              child: Icon(
+                                                Icons.broken_image,
+                                                color: Colors.grey,
+                                                size: 40,
+                                              ),
+                                            );
+                                          },
+                                        ),
+                                      )
+                                    : Column(
+                                        mainAxisAlignment:
+                                            MainAxisAlignment.center,
+                                        children: [
+                                          Icon(
+                                            Icons.add_photo_alternate,
+                                            size: 40,
+                                            color: accentColor,
+                                          ),
+                                          SizedBox(height: 8),
+                                          Text(
+                                            'اضغط لاختيار صورة',
+                                            style:
+                                                TextStyle(color: Colors.grey),
+                                          ),
+                                        ],
+                                      ),
                           ),
                         ),
-                      ],
-                    ),
-                  ],
-                ),
+                      ),
+                    ],
+                  ),
+                ],
               ),
-              actions: [
-                TextButton(
-                  onPressed: () => Navigator.pop(context),
-                  child: Text('إلغاء'),
-                ),
-                ElevatedButton.icon(
-                  icon: Icon(Icons.save),
-                  label: Text('حفظ'),
-                  onPressed: () async {
-                    if (nameController.text.trim().isEmpty) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(content: Text('يرجى إدخال اسم القسم')),
-                      );
-                      return;
-                    }
-                    
-                    try {
-                      await apiService.updateCategory(
-                        id: category.id,
-                        name: nameController.text,
-                        description: descriptionController.text,
-                        imageFile: selectedImage,
-                      );
-                      onRefresh();
-                      Navigator.pop(context);
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(
-                          content: Text('تم تعديل القسم بنجاح'),
-                          backgroundColor: Colors.green,
+            ),
+            actions: [
+              TextButton(
+                onPressed: dialogLoading ? null : () => Navigator.pop(context),
+                child: Text('إلغاء'),
+              ),
+              ElevatedButton.icon(
+                icon: dialogLoading
+                    ? SizedBox(
+                        width: 20,
+                        height: 20,
+                        child: CircularProgressIndicator(
+                          color: Colors.white,
+                          strokeWidth: 2,
                         ),
-                      );
-                    } catch (e) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(
-                          content: Text('فشل في تعديل القسم: حاول مرة أخرى'),
-                          backgroundColor: Colors.red,
-                        ),
-                      );
-                    }
-                  },
-                ),
-              ],
-            );
-          }
-        );
+                      )
+                    : Icon(Icons.save),
+                label: dialogLoading ? Text('جاري الحفظ...') : Text('حفظ'),
+                onPressed: dialogLoading
+                    ? null
+                    : () async {
+                        if (nameController.text.trim().isEmpty) {
+                          showErrorSnackbar('يرجى إدخال اسم القسم');
+                          return;
+                        }
+
+                        setState(() {
+                          dialogLoading = true;
+                        });
+
+                        try {
+                          await apiService.updateCategory(
+                            id: category.id,
+                            name: nameController.text,
+                            description: descriptionController.text,
+                            imageFile: selectedImage,
+                          );
+                          onRefresh();
+                          Navigator.pop(context);
+                          showSuccessSnackbar('تم تعديل القسم بنجاح');
+                        } catch (e) {
+                          showErrorSnackbar(
+                              'فشل في تعديل القسم: حاول مرة أخرى');
+                        } finally {
+                          setState(() {
+                            dialogLoading = false;
+                          });
+                        }
+                      },
+              ),
+            ],
+          );
+        });
       },
     );
   }
 
-  void _deleteCategory(BuildContext context, String id) async {
+  Future<void> _deleteCategory(BuildContext context) async {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
@@ -767,7 +840,7 @@ class CategoryItem extends StatelessWidget {
                 text: category.name,
                 style: TextStyle(
                   fontWeight: FontWeight.bold,
-                  color: accentColor,
+                  color: Colors.red,
                 ),
               ),
               TextSpan(text: '؟\n\nلا يمكن التراجع عن هذا الإجراء.'),
@@ -794,25 +867,11 @@ class CategoryItem extends StatelessWidget {
 
     if (confirmed == true) {
       try {
-        final result = await apiService.deleteCategory(id);
-        if (result) {
-          onRefresh();
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('تم حذف القسم بنجاح'),
-              backgroundColor: Colors.green,
-            ),
-          );
-        } else {
-          throw Exception('لم يتم حذف القسم');
-        }
+        await apiService.deleteCategory(category.id);
+        onRefresh();
+        showSuccessSnackbar('تم حذف القسم بنجاح');
       } catch (e) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('فشل في حذف القسم: يرجى المحاولة مرة أخرى'),
-            backgroundColor: Colors.red,
-          ),
-        );
+        showErrorSnackbar('فشل في حذف القسم: يرجى المحاولة مرة أخرى');
       }
     }
   }

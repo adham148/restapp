@@ -536,49 +536,79 @@ class _VideoManagementScreenState extends State<VideoManagementScreen> {
   }
 
   // وظيفة جديدة لتعديل الفيديو
-  Future<void> _updateVideo(
-      String videoId, String title, File? thumbnailFile) async {
-    try {
-      setState(() => isLoading = true);
-      final dio = Dio();
+Future<void> _updateVideo(String videoId, String title, File? thumbnailFile) async {
+  try {
+    setState(() => isLoading = true);
+    final dio = Dio();
+    
+    // 1. التحقق من صحة المدخلات
+    if (videoId.isEmpty) throw Exception('معرّف الفيديو غير صالح');
+    if (title.isEmpty) throw Exception('العنوان لا يمكن أن يكون فارغًا');
 
-      // إنشاء FormData لطلب التحديث
-      final formData = FormData();
-      formData.fields.add(MapEntry('title', title));
+    // 2. تسجيل بيانات التعديل للتحقق
+    debugPrint('=== بدء عملية تعديل الفيديو ===');
+    debugPrint('الرابط المستخدم: https://backend-q811.onrender.com/videos/videos/$videoId');
+    debugPrint('العنوان الجديد: $title');
+    debugPrint('مسار الصورة المصغرة: ${thumbnailFile?.path}');
 
-      // إضافة الصورة المصغرة الجديدة إذا تم تحديدها
-      if (thumbnailFile != null) {
-        formData.files.add(
-          MapEntry(
-            'thumbnail',
-            await MultipartFile.fromFile(
-              thumbnailFile.path,
-              filename: thumbnailFile.path.split('/').last,
-              contentType: MediaType.parse(
-                  lookupMimeType(thumbnailFile.path) ?? 'image/jpeg'),
-            ),
-          ),
-        );
-      }
+    // 3. إنشاء FormData
+    final formData = FormData.fromMap({
+      'title': title,
+      if (thumbnailFile != null) 
+        'thumbnail': await MultipartFile.fromFile(
+          thumbnailFile.path,
+          filename: 'thumbnail_${DateTime.now().millisecondsSinceEpoch}.jpg',
+          contentType: MediaType.parse('image/jpeg'),
+        ),
+    });
 
-      // إرسال طلب التحديث
-      final response = await dio.put(
-        'https://backend-q811.onrender.com/videos/video/$videoId',
-        data: formData,
-      );
+    // 4. إضافة المصادقة
+    final prefs = await SharedPreferences.getInstance();
+    final token = prefs.getString('token');
+    
+    final options = Options(
+      headers: {
+        if (token != null) 'Authorization': 'Bearer $token',
+        'Accept': 'application/json',
+      },
+    );
 
-      if (response.statusCode == 200) {
-        _showSuccessSnackbar('تم تحديث الفيديو بنجاح');
-        _fetchVideos();
-      } else {
-        _showErrorSnackbar('فشل تحديث الفيديو: ${response.statusCode}');
-      }
-    } catch (e) {
-      _showErrorSnackbar('حدث خطأ أثناء تحديث الفيديو: $e');
-    } finally {
-      setState(() => isLoading = false);
+    // 5. إرسال الطلب
+    debugPrint('إرسال طلب PUT...');
+    final response = await dio.put(
+      'https://backend-q811.onrender.com/videos/videos/$videoId', // تم تصحيح الرابط هنا
+      data: formData,
+      options: options,
+    );
+
+    // 6. تحليل الاستجابة
+    debugPrint('حالة الاستجابة: ${response.statusCode}');
+    debugPrint('بيانات الاستجابة: ${response.data}');
+
+    if (response.statusCode == 200) {
+      _showSuccessSnackbar('تم تحديث الفيديو بنجاح');
+      _fetchVideos(); // تحديث القائمة
+    } else {
+      throw Exception(response.data['message'] ?? 'فشل التحديث');
     }
+  } catch (e, stackTrace) {
+    debugPrint('حدث خطأ: $e');
+    debugPrint('Stack Trace: $stackTrace');
+    
+    String errorMessage = 'حدث خطأ أثناء التعديل';
+    if (e is DioException) {
+      if (e.response?.statusCode == 404) {
+        errorMessage = 'لم يتم العثور على الفيديو (404)';
+      } else if (e.response?.data != null) {
+        errorMessage = e.response!.data['message'] ?? errorMessage;
+      }
+    }
+    
+    _showErrorSnackbar(errorMessage);
+  } finally {
+    setState(() => isLoading = false);
   }
+}
 
   void _clearForm() {
     _titleController.clear();
@@ -782,7 +812,7 @@ class _VideoManagementScreenState extends State<VideoManagementScreen> {
     return Scaffold(
       backgroundColor: kPrimaryColor,
       appBar: AppBar(
-        backgroundColor: kCardColor,
+        backgroundColor: Colors.black,
         title: !isSearching
             ? Text('إدارة الفيديوهات',
                 style:

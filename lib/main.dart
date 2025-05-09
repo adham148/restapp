@@ -77,7 +77,19 @@ class MyApp extends StatelessWidget {
       theme: ThemeData(
         colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),
         useMaterial3: true,
+        // إضافة إعدادات RTL إلى الثيم
+        textTheme: const TextTheme(
+          bodyLarge: TextStyle(fontFamily: 'Tajawal'),
+          bodyMedium: TextStyle(fontFamily: 'Tajawal'),
+          titleLarge: TextStyle(fontFamily: 'Tajawal'),
+          titleMedium: TextStyle(fontFamily: 'Tajawal'),
+          titleSmall: TextStyle(fontFamily: 'Tajawal'),
+        ),
+        appBarTheme: const AppBarTheme(
+          centerTitle: true,
+        ),
       ),
+      // إعدادات اللغة والاتجاه
       localizationsDelegates: const [
         GlobalMaterialLocalizations.delegate,
         GlobalWidgetsLocalizations.delegate,
@@ -87,6 +99,13 @@ class MyApp extends StatelessWidget {
         Locale('ar', 'AE'),
       ],
       locale: const Locale('ar', 'AE'),
+      // تحديد اتجاه النص افتراضيًا لـ RTL
+      builder: (context, child) {
+        return Directionality(
+          textDirection: TextDirection.rtl,
+          child: child!,
+        );
+      },
       home: isFirstLaunch ? const LoginScreen() : const HomeScreen(),
     );
   }

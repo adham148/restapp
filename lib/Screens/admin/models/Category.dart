@@ -3,7 +3,7 @@ class Category {
   final String name;
   final String description;
   final String? image;
-  final int totalVideos;
+  final int? totalVideos; // جعلها nullable
   final List<Category> subcategories;
 
   Category({
@@ -11,18 +11,18 @@ class Category {
     required this.name,
     required this.description,
     this.image,
-    required this.totalVideos,
-    required this.subcategories,
+    this.totalVideos = 0, // قيمة افتراضية
+    this.subcategories = const [], // قيمة افتراضية
   });
 
   factory Category.fromJson(Map<String, dynamic> json) {
     return Category(
-      id: json['_id'],
-      name: json['name'],
-      description: json['description'],
+      id: json['_id'] ?? '', // تأكد من وجود _id أو استخدم قيمة افتراضية
+      name: json['name'] ?? '',
+      description: json['description'] ?? '',
       image: json['image'],
-      totalVideos: json['totalVideos'],
-      subcategories: (json['subcategories'] as List)
+      totalVideos: json['totalVideos'] ?? 0,
+      subcategories: (json['subcategories'] as List? ?? [])
           .map((subcategory) => Category.fromJson(subcategory))
           .toList(),
     );

@@ -6,6 +6,7 @@ import 'package:share_plus/share_plus.dart';
 import 'package:flutter_downloader/flutter_downloader.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:permission_handler/permission_handler.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class VideoDetailsScreen extends StatefulWidget {
   final String videoId;
@@ -41,10 +42,19 @@ class _VideoDetailsScreenState extends State<VideoDetailsScreen> with SingleTick
   bool _isDownloading = false;
   // تحديد ارتفاع مشغل الفيديو
   final double _playerHeight = 250;
+  
+  // إضافة متغيرات لسرعة الفيديو والدقة
+  double _playbackSpeed = 1.0;
+  String _currentQuality = 'تلقائي';
+  List<String> _availableQualities = ['تلقائي', '1080p', '720p', '480p', '360p'];
+  
+  // حفظ المفضلة محليًا
+  late SharedPreferences _prefs;
 
   @override
   void initState() {
     super.initState();
+    _initSharedPrefs();
     _loadVideoData();
     _incrementViews();
     _favoriteController = AnimationController(
@@ -55,6 +65,35 @@ class _VideoDetailsScreenState extends State<VideoDetailsScreen> with SingleTick
       parent: _favoriteController!,
       curve: Curves.easeInOut,
     );
+  }
+
+  Future<void> _initSharedPrefs() async {
+    _prefs = await SharedPreferences.getInstance();
+    _checkBookmarkStatus();
+  }
+
+  void _checkBookmarkStatus() {
+    // استرجاع حالة المفضلة من التخزين المحلي
+    final bookmarkedVideos = _prefs.getStringList('bookmarked_videos') ?? [];
+    setState(() {
+      _isBookmarked = bookmarkedVideos.contains(widget.videoId);
+      if (_isBookmarked) {
+        _favoriteController?.value = 1.0;
+      }
+    });
+  }
+
+  Future<void> _saveBookmarkStatus() async {
+    // حفظ حالة المفضلة في التخزين المحلي
+    final bookmarkedVideos = _prefs.getStringList('bookmarked_videos') ?? [];
+    
+    if (_isBookmarked && !bookmarkedVideos.contains(widget.videoId)) {
+      bookmarkedVideos.add(widget.videoId);
+    } else if (!_isBookmarked && bookmarkedVideos.contains(widget.videoId)) {
+      bookmarkedVideos.remove(widget.videoId);
+    }
+    
+    await _prefs.setStringList('bookmarked_videos', bookmarkedVideos);
   }
 
   Future<void> _incrementViews() async {
@@ -80,14 +119,10 @@ class _VideoDetailsScreenState extends State<VideoDetailsScreen> with SingleTick
       
       setState(() {
         _isFavorite = videoData['video']['favorites'] ?? false;
-        _isBookmarked = videoData['video']['bookmarked'] ?? false; // إضافة حالة الحفظ
+        // لا نقوم بتحديث _isBookmarked هنا لأننا نعتمد على التخزين المحلي
         _favoritesCount = videoData['video']['favoritesCount'] ?? 0;
         _bookmarksCount = videoData['video']['bookmarksCount'] ?? 0; // إضافة عدد الحفظ
       });
-      
-      if (_isBookmarked) {
-        _favoriteController!.value = 1.0;
-      }
       
       await _initializeVideoPlayer(_videoUrl!);
       
@@ -119,6 +154,9 @@ class _VideoDetailsScreenState extends State<VideoDetailsScreen> with SingleTick
         _bookmarksCount = _isBookmarked ? _bookmarksCount + 1 : _bookmarksCount - 1;
       });
       
+      // حفظ الحالة محليًا
+      _saveBookmarkStatus();
+      
       // تشغيل الرسوم المتحركة بناءً على الحالة الجديدة
       if (_isBookmarked) {
         _favoriteController!.forward();
@@ -129,10 +167,16 @@ class _VideoDetailsScreenState extends State<VideoDetailsScreen> with SingleTick
     } catch (e) {
       print('Error updating bookmarks: $e');
       
+      // رغم الخطأ، نستمر في تحديث الحالة المحلية للتأكد من ثباتها
+      setState(() {
+        _isBookmarked = !_isBookmarked;
+      });
+      _saveBookmarkStatus();
+      
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('الفديو مجود في المفضله مسبقاء '),
-          backgroundColor: Colors.red,
+          content: Text('حدث خطأ في تحديث المفضلة، ولكن تم حفظها محليًا'),
+          backgroundColor: Colors.orange,
           behavior: SnackBarBehavior.floating,
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(10),
@@ -234,41 +278,158 @@ class _VideoDetailsScreenState extends State<VideoDetailsScreen> with SingleTick
         looping: false,
         aspectRatio: _videoPlayerController!.value.aspectRatio,
         allowFullScreen: true,
-        showOptions: false,
+        showOptions: true, // تمكين خيارات إضافية
         showControls: true,
-        placeholder: Stack(
-          fit: StackFit.expand,
-          children: [
-            Image.network(
-              widget.thumbnailUrl ?? '',
-              fit: BoxFit.cover,
-              errorBuilder: (context, error, stackTrace) {
-                return Container(color: Colors.black);
-              },
-            ),
-            Container(
-              color: Colors.black.withOpacity(0.5),
-              child: const Center(
-                child: CircularProgressIndicator(
-                  valueColor: AlwaysStoppedAnimation<Color>(Colors.red),
-                ),
-              ),
-            ),
-          ],
-        ),
+        placeholder: Container(color: Colors.black), // خلفية سوداء بدلاً من الصورة المصغرة
         materialProgressColors: ChewieProgressColors(
           playedColor: Colors.red,
           handleColor: Colors.red,
           backgroundColor: Colors.grey.shade800,
           bufferedColor: Colors.grey,
         ),
+        additionalOptions: (context) {
+          return <OptionItem>[
+            // خيار تغيير سرعة التشغيل
+            OptionItem(
+              onTap: (context) => _showPlaybackSpeedDialog(),
+              iconData: Icons.speed,
+              title: 'سرعة التشغيل: ${_playbackSpeed}x',
+            ),
+            // خيار تغيير دقة الفيديو
+            OptionItem(
+              onTap: (context) => _showQualityDialog(),
+              iconData: Icons.high_quality,
+              title: 'الدقة: $_currentQuality',
+            ),
+          ];
+        },
       );
+      
+      // ضبط سرعة التشغيل الافتراضية
+      _videoPlayerController!.setPlaybackSpeed(_playbackSpeed);
+      
     } catch (e) {
       setState(() {
         _hasError = true;
         _errorMessage = 'فشل تشغيل الفيديو: ${e.toString()}';
       });
     }
+  }
+  
+  void _showPlaybackSpeedDialog() {
+    // قائمة سرعات التشغيل المتاحة
+    final List<double> speeds = [0.25, 0.5, 0.75, 1.0, 1.25, 1.5, 1.75, 2.0];
+    
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: Colors.grey.shade900,
+        title: const Text(
+          'سرعة التشغيل',
+          style: TextStyle(color: Colors.white),
+          textAlign: TextAlign.center,
+        ),
+        content: Container(
+          width: double.maxFinite,
+          child: ListView.builder(
+            shrinkWrap: true,
+            itemCount: speeds.length,
+            itemBuilder: (context, index) {
+              final speed = speeds[index];
+              final isSelected = speed == _playbackSpeed;
+              
+              return ListTile(
+                title: Text(
+                  '${speed}x',
+                  style: TextStyle(
+                    color: isSelected ? Colors.red : Colors.white,
+                    fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+                onTap: () {
+                  Navigator.of(context).pop();
+                  setState(() {
+                    _playbackSpeed = speed;
+                  });
+                  _videoPlayerController?.setPlaybackSpeed(speed);
+                },
+                selected: isSelected,
+                selectedTileColor: Colors.red.withOpacity(0.2),
+              );
+            },
+          ),
+        ),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(16),
+        ),
+      ),
+    );
+  }
+  
+  void _showQualityDialog() {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: Colors.grey.shade900,
+        title: const Text(
+          'دقة الفيديو',
+          style: TextStyle(color: Colors.white),
+          textAlign: TextAlign.center,
+        ),
+        content: Container(
+          width: double.maxFinite,
+          child: ListView.builder(
+            shrinkWrap: true,
+            itemCount: _availableQualities.length,
+            itemBuilder: (context, index) {
+              final quality = _availableQualities[index];
+              final isSelected = quality == _currentQuality;
+              
+              return ListTile(
+                title: Text(
+                  quality,
+                  style: TextStyle(
+                    color: isSelected ? Colors.red : Colors.white,
+                    fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+                onTap: () {
+                  Navigator.of(context).pop();
+                  setState(() {
+                    _currentQuality = quality;
+                  });
+                  
+                  // هنا يمكن إضافة منطق لتغيير دقة الفيديو
+                  // يحتاج إلى معالجة خاصة حسب مصدر الفيديو وAPI المتاح
+                  _showQualityChangedMessage(quality);
+                },
+                selected: isSelected,
+                selectedTileColor: Colors.red.withOpacity(0.2),
+              );
+            },
+          ),
+        ),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(16),
+        ),
+      ),
+    );
+  }
+  
+  void _showQualityChangedMessage(String quality) {
+    // رسالة إعلامية لتغيير الدقة (يمكن استبدالها بمنطق فعلي لتغيير الدقة)
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('تم تغيير الدقة إلى $quality'),
+        backgroundColor: Colors.green,
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(10),
+        ),
+      ),
+    );
   }
 
   @override
@@ -384,6 +545,28 @@ class _VideoDetailsScreenState extends State<VideoDetailsScreen> with SingleTick
                         ),
                       ),
                     ),
+                    
+                    // إضافة مؤشر سرعة التشغيل (اختياري)
+                    if (_playbackSpeed != 1.0)
+                      Positioned(
+                        top: 40,
+                        right: 16,
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                          decoration: BoxDecoration(
+                            color: Colors.black.withOpacity(0.7),
+                            borderRadius: BorderRadius.circular(4),
+                          ),
+                          child: Text(
+                            '${_playbackSpeed}x',
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 12,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ),
+                      ),
                     
                     // مؤشر التحميل أثناء التنزيل
                     if (_isDownloading)
@@ -526,6 +709,36 @@ class _VideoDetailsScreenState extends State<VideoDetailsScreen> with SingleTick
                                     ],
                                   ),
                                 ),
+                                
+                                const Spacer(),
+                                
+                                // زر ضبط الدقة - إضافة جديدة
+                                InkWell(
+                                  onTap: _showQualityDialog,
+                                  child: Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                                    decoration: BoxDecoration(
+                                      color: Colors.red.withOpacity(0.3),
+                                      borderRadius: BorderRadius.circular(20),
+                                    ),
+                                    child: Row(
+                                      children: [
+                                        Icon(Icons.settings, 
+                                          color: Colors.white,
+                                          size: 16,
+                                        ),
+                                        const SizedBox(width: 4),
+                                        Text(
+                                          _currentQuality,
+                                          style: const TextStyle(
+                                            color: Colors.white,
+                                            fontSize: 14,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ),
                               ],
                             ),
                             
@@ -564,6 +777,12 @@ class _VideoDetailsScreenState extends State<VideoDetailsScreen> with SingleTick
                                     label: 'تنزيل',
                                     onTap: _downloadVideo,
                                     isLoading: _isDownloading,
+                                    color: Colors.white,
+                                  ),
+                                  _buildActionButton(
+                                    icon: Icons.speed,
+                                    label: 'السرعة',
+                                    onTap: _showPlaybackSpeedDialog,
                                     color: Colors.white,
                                   ),
                                 ],
@@ -834,13 +1053,13 @@ class _VideoDetailsScreenState extends State<VideoDetailsScreen> with SingleTick
                         
                         const SizedBox(width: 12),
                         
-                        Icon(Icons.favorite, 
+                        Icon(Icons.bookmark, 
                           color: Colors.grey.shade400,
                           size: 14,
                         ),
                         const SizedBox(width: 4),
                         Text(
-                          _formatNumber(video['favoritesCount'] ?? 0),
+                          _formatNumber(video['bookmarksCount'] ?? 0),
                           style: TextStyle(
                             color: Colors.grey.shade400,
                             fontSize: 12,

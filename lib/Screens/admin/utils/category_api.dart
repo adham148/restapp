@@ -21,47 +21,52 @@ class CategoryApiService {
     }
   }
 
-  // إضافة قسم رئيسي مع دعم رفع الصورة
-  Future<Category> addMainCategory({
-    required String name,
-    required String description,
-    File? imageFile,
-  }) async {
-    var request = http.MultipartRequest('POST', Uri.parse('$baseUrl/categories'));
-    
-    request.fields['name'] = name;
-    request.fields['description'] = description;
-    
+Future<Category> addMainCategory({
+  required String name,
+  required String description,
+  File? imageFile,
+}) async {
+  try {
+    final uri = Uri.parse('$baseUrl/categories');
+    final request = http.MultipartRequest('POST', uri)
+      ..fields['name'] = name
+      ..fields['description'] = description;
+
     if (imageFile != null) {
       request.files.add(
         await http.MultipartFile.fromPath(
-          'image',
+          'image', 
           imageFile.path,
           contentType: MediaType('image', 'jpeg'),
         ),
       );
     }
-    
-    var streamedResponse = await request.send();
-    var response = await http.Response.fromStream(streamedResponse);
-    
-    if (response.statusCode == 200 || response.statusCode == 201) {
-      return Category.fromJson(json.decode(response.body));
-    } else {
-      // للتعامل مع مشكلة ظهور رسالة فشل بينما تم إضافة القسم
-      if (response.body.contains('category added') || response.body.contains('category created')) {
-        // استعلام عن القسم المضاف لإرجاعه
-        final categories = await getAllCategories();
-        final addedCategory = categories.firstWhere(
-          (cat) => cat.name == name && cat.description == description,
-          orElse: () => Category.fromJson(json.decode(response.body))
-        );
-        return addedCategory;
+
+    final streamedResponse = await request.send();
+    final response = await http.Response.fromStream(streamedResponse);
+
+    if (response.statusCode == 201) {
+      final responseBody = json.decode(response.body);
+      
+      if (responseBody['category'] != null) {
+        return Category.fromJson(responseBody['category']);
       } else {
-        throw Exception('Failed to add main category: ${response.body}');
+        // إذا لم يكن هناك كائن category، أنشئ واحدًا من البيانات الأساسية
+        return Category(
+          id: DateTime.now().millisecondsSinceEpoch.toString(),
+          name: name,
+          description: description,
+          image: responseBody['imageUrl'],
+        );
       }
+    } else {
+      throw Exception('فشل في إضافة القسم: ${response.statusCode}');
     }
+  } catch (e) {
+    throw Exception('حدث خطأ: ${e.toString()}');
   }
+}
+
 
   // إضافة قسم فرعي مع دعم رفع الصورة
   Future<Category> addSubcategory({
@@ -115,7 +120,7 @@ class CategoryApiService {
   Future<bool> deleteCategory(String id) async {
     try {
       final response = await http.delete(
-        Uri.parse('$baseUrl/categories/$id'),
+        Uri.parse('$baseUrl/category/$id'),
         headers: {'Content-Type': 'application/json'},
       );
 
