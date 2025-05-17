@@ -5,6 +5,8 @@ import 'package:breakapp/screens/admin/screens/main_navigation.dart';
 import 'package:breakapp/screens/home_screen.dart';
 import 'package:breakapp/screens/auth/signup_screen.dart';
 
+import 'ForgotPassword_Screen.dart';
+
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
 
@@ -233,6 +235,25 @@ class _LoginScreenState extends State<LoginScreen> {
                           ),
                         ),
                       ),
+                      // في شاشة LoginScreen، أضف هذا الزر تحت زر إنشاء حساب جديد
+TextButton(
+  onPressed: () {
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (context) => const ForgotPasswordScreen()),
+    );
+  },
+  style: TextButton.styleFrom(
+    foregroundColor: Colors.white,
+  ),
+  child: const Text(
+    'نسيت كلمة المرور؟',
+    style: TextStyle(
+      fontSize: 16,
+      decoration: TextDecoration.underline,
+    ),
+  ),
+),
                       const Text('ليس لديك حساب؟', style: TextStyle(color: Colors.white70)),
                     ],
                   ),

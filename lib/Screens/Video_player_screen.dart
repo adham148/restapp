@@ -46,7 +46,7 @@ class _VideoDetailsScreenState extends State<VideoDetailsScreen> with SingleTick
   // إضافة متغيرات لسرعة الفيديو والدقة
   double _playbackSpeed = 1.0;
   String _currentQuality = 'تلقائي';
-  List<String> _availableQualities = ['تلقائي', '1080p', '720p', '480p', '360p'];
+  final List<String> _availableQualities = ['تلقائي', '1080p', '720p', '480p', '360p'];
   
   // حفظ المفضلة محليًا
   late SharedPreferences _prefs;
@@ -175,7 +175,7 @@ class _VideoDetailsScreenState extends State<VideoDetailsScreen> with SingleTick
       
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('حدث خطأ في تحديث المفضلة، ولكن تم حفظها محليًا'),
+          content: const Text('حدث خطأ في تحديث المفضلة، ولكن تم حفظها محليًا'),
           backgroundColor: Colors.orange,
           behavior: SnackBarBehavior.floating,
           shape: RoundedRectangleBorder(
@@ -197,7 +197,7 @@ class _VideoDetailsScreenState extends State<VideoDetailsScreen> with SingleTick
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('فشل في مشاركة الفيديو'),
+          content: const Text('فشل في مشاركة الفيديو'),
           backgroundColor: Colors.red,
           behavior: SnackBarBehavior.floating,
           shape: RoundedRectangleBorder(
@@ -211,7 +211,7 @@ class _VideoDetailsScreenState extends State<VideoDetailsScreen> with SingleTick
   Future<void> _downloadVideo() async {
     if (_videoUrl == null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('رابط الفيديو غير متاح')),
+        const SnackBar(content: Text('رابط الفيديو غير متاح')),
       );
       return;
     }
@@ -245,7 +245,7 @@ class _VideoDetailsScreenState extends State<VideoDetailsScreen> with SingleTick
 
           if (taskId != null) {
             ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(content: Text('بدأ التنزيل...')),
+              const SnackBar(content: Text('بدأ التنزيل...')),
             );
           }
         }
@@ -254,7 +254,7 @@ class _VideoDetailsScreenState extends State<VideoDetailsScreen> with SingleTick
         openAppSettings(); // فتح إعدادات التطبيق لتغيير الصلاحيات
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('تم رفض صلاحيات التخزين')),
+          const SnackBar(content: Text('تم رفض صلاحيات التخزين')),
         );
       }
     } catch (e) {
@@ -329,7 +329,7 @@ class _VideoDetailsScreenState extends State<VideoDetailsScreen> with SingleTick
           style: TextStyle(color: Colors.white),
           textAlign: TextAlign.center,
         ),
-        content: Container(
+        content: SizedBox(
           width: double.maxFinite,
           child: ListView.builder(
             shrinkWrap: true,
@@ -377,7 +377,7 @@ class _VideoDetailsScreenState extends State<VideoDetailsScreen> with SingleTick
           style: TextStyle(color: Colors.white),
           textAlign: TextAlign.center,
         ),
-        content: Container(
+        content: SizedBox(
           width: double.maxFinite,
           child: ListView.builder(
             shrinkWrap: true,
@@ -723,7 +723,7 @@ class _VideoDetailsScreenState extends State<VideoDetailsScreen> with SingleTick
                                     ),
                                     child: Row(
                                       children: [
-                                        Icon(Icons.settings, 
+                                        const Icon(Icons.settings, 
                                           color: Colors.white,
                                           size: 16,
                                         ),
@@ -883,10 +883,10 @@ class _VideoDetailsScreenState extends State<VideoDetailsScreen> with SingleTick
         future: videoSuggestions,
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
-            return SliverToBoxAdapter(
+            return const SliverToBoxAdapter(
               child: SizedBox(
                 height: 200,
-                child: const Center(
+                child: Center(
                   child: CircularProgressIndicator(
                     valueColor: AlwaysStoppedAnimation<Color>(Colors.red),
                   ),

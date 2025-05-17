@@ -8,7 +8,8 @@ class AuthService {
   static const String _adminBaseUrl = 'https://backend-q811.onrender.com/admin';
 
   // تسجيل الدخول العادي
-  static Future<Map<String, dynamic>?> login(String email, String password) async {
+  static Future<Map<String, dynamic>?> login(
+      String email, String password) async {
     final url = Uri.parse('$_baseUrl/login');
 
     try {
@@ -37,7 +38,8 @@ class AuthService {
   }
 
   // تسجيل الدخول كمسؤول
-  static Future<Map<String, dynamic>?> adminLogin(String email, String password) async {
+  static Future<Map<String, dynamic>?> adminLogin(
+      String email, String password) async {
     final url = Uri.parse('$_adminBaseUrl/login');
 
     try {
@@ -69,7 +71,7 @@ class AuthService {
   static Future<void> _saveUserData(String token, bool isAdmin) async {
     // حفظ التوكن باستخدام TokenStorage
     await TokenStorage.saveToken(token);
-    
+
     // حفظ باقي البيانات في SharedPreferences
     final prefs = await SharedPreferences.getInstance();
     await prefs.setBool('is_admin', isAdmin);
@@ -92,7 +94,7 @@ class AuthService {
   static Future<void> logout() async {
     // حذف التوكن باستخدام TokenStorage
     await TokenStorage.removeToken();
-    
+
     // حذف باقي البيانات من SharedPreferences
     final prefs = await SharedPreferences.getInstance();
     await prefs.remove('is_admin');
@@ -143,7 +145,8 @@ class AuthService {
   }
 
   // دالة للتحقق من البريد الإلكتروني
-  static Future<Map<String, dynamic>?> verifyEmail(String email, String code) async {
+  static Future<Map<String, dynamic>?> verifyEmail(
+      String email, String code) async {
     final url = Uri.parse('$_baseUrl/verify-email');
 
     try {
@@ -158,13 +161,46 @@ class AuthService {
 
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
-        return data; 
+        return data;
       } else {
         final errorData = jsonDecode(response.body);
         return {'error': errorData['message'] ?? 'حدث خطأ غير متوقع'};
       }
     } catch (e) {
       return {'error': 'خطأ في الاتصال بالسيرفر'};
+    }
+  }
+
+  static Future<Map<String, dynamic>> forgotPassword(String email) async {
+    try {
+      final response = await http.post(
+        Uri.parse('$_baseUrl/forgot-password'),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({'email': email}),
+      );
+
+      return jsonDecode(response.body);
+    } catch (e) {
+      return {'error': 'حدث خطأ أثناء الاتصال بالخادم'};
+    }
+  }
+
+  static Future<Map<String, dynamic>> resetPassword(
+      String email, String code, String newPassword) async {
+    try {
+      final response = await http.post(
+        Uri.parse('$_baseUrl/reset-password'),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({
+          'email': email,
+          'code': code,
+          'newPassword': newPassword,
+        }),
+      );
+
+      return jsonDecode(response.body);
+    } catch (e) {
+      return {'error': 'حدث خطأ أثناء الاتصال بالخادم'};
     }
   }
 }

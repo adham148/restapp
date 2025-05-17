@@ -13,47 +13,95 @@ class _SignUpScreenState extends State<SignUpScreen> {
   final TextEditingController _nameController = TextEditingController();
   final TextEditingController _emailController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
+  final TextEditingController _confirmPasswordController = TextEditingController();
   final TextEditingController _phoneController = TextEditingController();
 
   String _message = ""; // لتخزين رسالة التحقق أو الخطأ
+  bool _isPasswordVisible = false;
+  bool _isConfirmPasswordVisible = false;
 
   void _signUp() async {
-    if (_nameController.text.isNotEmpty &&
-        _emailController.text.isNotEmpty &&
-        _passwordController.text.isNotEmpty &&
-        _phoneController.text.isNotEmpty) {
-      
-      // استدعاء دالة التسجيل من AuthService
-      final result = await AuthService.register(
-        _nameController.text,
-        _emailController.text,
-        _passwordController.text,
-        _phoneController.text,
-      );
+    // إعادة تعيين الرسالة
+    setState(() {
+      _message = "";
+    });
 
-      if (result != null) {
-        if (result.containsKey('error')) {
-          setState(() {
-            _message = result['error']; // عرض رسالة الخطأ
-          });
-        } else {
-          setState(() {
-            _message = 'تم إرسال كود التحقق إلى البريد الإلكتروني'; // عرض رسالة النجاح
-          });
-
-          // الانتقال إلى شاشة التحقق
-          Navigator.pushReplacement(
-            context,
-            MaterialPageRoute(
-              builder: (context) => VerificationScreen(email: _emailController.text),
-            ),
-          );
-        }
-      }
-    } else {
+    // التحقق من ملء جميع الحقول
+    if (_nameController.text.isEmpty ||
+        _emailController.text.isEmpty ||
+        _passwordController.text.isEmpty ||
+        _confirmPasswordController.text.isEmpty ||
+        _phoneController.text.isEmpty) {
       setState(() {
         _message = 'يرجى ملء جميع الحقول';
       });
+      return;
+    }
+
+    // التحقق من تطابق كلمتي المرور
+    if (_passwordController.text != _confirmPasswordController.text) {
+      setState(() {
+        _message = 'كلمتا المرور غير متطابقتين';
+      });
+      return;
+    }
+
+    // التحقق من طول كلمة المرور (يمكنك تعديل الشروط حسب احتياجاتك)
+    if (_passwordController.text.length < 6) {
+      setState(() {
+        _message = 'كلمة المرور يجب أن تكون على الأقل 6 أحرف';
+      });
+      return;
+    }
+
+    // التحقق من رقم الهاتف
+    if (_phoneController.text.length != 9) {
+      setState(() {
+        _message = 'رقم الهاتف يجب أن يتكون من 9 أرقام';
+      });
+      return;
+    }
+
+    if (_phoneController.text.startsWith('7')) {
+      setState(() {
+        _message = 'رقم الهاتف لا يمكن أن يبدأ بالرقم 7';
+      });
+      return;
+    }
+
+    if (!RegExp(r'^[0-9]+$').hasMatch(_phoneController.text)) {
+      setState(() {
+        _message = 'رقم الهاتف يجب أن يحتوي على أرقام فقط';
+      });
+      return;
+    }
+
+    // استدعاء دالة التسجيل من AuthService
+    final result = await AuthService.register(
+      _nameController.text,
+      _emailController.text,
+      _passwordController.text,
+      _phoneController.text,
+    );
+
+    if (result != null) {
+      if (result.containsKey('error')) {
+        setState(() {
+          _message = result['error']; // عرض رسالة الخطأ
+        });
+      } else {
+        setState(() {
+          _message = 'تم إرسال كود التحقق إلى البريد الإلكتروني'; // عرض رسالة النجاح
+        });
+
+        // الانتقال إلى شاشة التحقق
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(
+            builder: (context) => VerificationScreen(email: _emailController.text),
+          ),
+        );
+      }
     }
   }
 
@@ -75,9 +123,9 @@ class _SignUpScreenState extends State<SignUpScreen> {
                 // شعار التطبيق
                 Center(
                   child: Image.asset(
-                    'assets/images/2.png', // تأكد من تعديل المسار حسب موقع ملفك
-                    height: 170, // يمكنك تعديل الارتفاع حسب الحاجة
-                    width: 170,  // يمكنك تعديل العرض حسب الحاجة
+                    'assets/images/2.png',
+                    height: 120,
+                    width: 120,
                     fit: BoxFit.contain,
                   ),
                 ),
@@ -148,14 +196,59 @@ class _SignUpScreenState extends State<SignUpScreen> {
                     padding: const EdgeInsets.symmetric(horizontal: 10.0),
                     child: TextField(
                       controller: _passwordController,
-                      obscureText: true,
+                      obscureText: !_isPasswordVisible,
                       textAlign: TextAlign.right,
                       style: const TextStyle(color: Colors.black),
-                      decoration: const InputDecoration(
+                      decoration: InputDecoration(
                         border: InputBorder.none,
                         labelText: 'كلمة المرور',
-                        labelStyle: TextStyle(color: Colors.black54),
-                        prefixIcon: Icon(Icons.lock_outline, color: Colors.black54),
+                        labelStyle: const TextStyle(color: Colors.black54),
+                        prefixIcon: const Icon(Icons.lock_outline, color: Colors.black54),
+                        suffixIcon: IconButton(
+                          icon: Icon(
+                            _isPasswordVisible ? Icons.visibility : Icons.visibility_off,
+                            color: Colors.black54,
+                          ),
+                          onPressed: () {
+                            setState(() {
+                              _isPasswordVisible = !_isPasswordVisible;
+                            });
+                          },
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 16),
+                // حقل تأكيد كلمة المرور
+                Container(
+                  decoration: BoxDecoration(
+                    color: Colors.grey[300],
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 10.0),
+                    child: TextField(
+                      controller: _confirmPasswordController,
+                      obscureText: !_isConfirmPasswordVisible,
+                      textAlign: TextAlign.right,
+                      style: const TextStyle(color: Colors.black),
+                      decoration: InputDecoration(
+                        border: InputBorder.none,
+                        labelText: 'تأكيد كلمة المرور',
+                        labelStyle: const TextStyle(color: Colors.black54),
+                        prefixIcon: const Icon(Icons.lock_outline, color: Colors.black54),
+                        suffixIcon: IconButton(
+                          icon: Icon(
+                            _isConfirmPasswordVisible ? Icons.visibility : Icons.visibility_off,
+                            color: Colors.black54,
+                          ),
+                          onPressed: () {
+                            setState(() {
+                              _isConfirmPasswordVisible = !_isConfirmPasswordVisible;
+                            });
+                          },
+                        ),
                       ),
                     ),
                   ),
@@ -171,11 +264,12 @@ class _SignUpScreenState extends State<SignUpScreen> {
                     padding: const EdgeInsets.symmetric(horizontal: 10.0),
                     child: TextField(
                       controller: _phoneController,
+                      keyboardType: TextInputType.phone,
                       textAlign: TextAlign.right,
                       style: const TextStyle(color: Colors.black),
                       decoration: const InputDecoration(
                         border: InputBorder.none,
-                        labelText: 'رقم الهاتف',
+                        labelText: 'رقم الهاتف (9 أرقام، لا يبدأ بـ 7)',
                         labelStyle: TextStyle(color: Colors.black54),
                         prefixIcon: Icon(Icons.phone, color: Colors.black54),
                       ),
@@ -207,7 +301,9 @@ class _SignUpScreenState extends State<SignUpScreen> {
                     child: Text(
                       _message,
                       style: TextStyle(
-                        color: _message.contains('خطأ') ? Colors.red : Colors.green,
+                        color: _message.contains('خطأ') || 
+                               _message.contains('يرجى') || 
+                               _message.contains('يجب') ? Colors.red : Colors.green,
                         fontSize: 16,
                         fontWeight: FontWeight.bold,
                       ),
