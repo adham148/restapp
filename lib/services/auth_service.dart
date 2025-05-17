@@ -171,36 +171,45 @@ class AuthService {
     }
   }
 
-  static Future<Map<String, dynamic>> forgotPassword(String email) async {
-    try {
-      final response = await http.post(
-        Uri.parse('$_baseUrl/forgot-password'),
-        headers: {'Content-Type': 'application/json'},
-        body: jsonEncode({'email': email}),
-      );
+static Future<Map<String, dynamic>> forgotPassword(String email) async {
+  try {
+    final response = await http.post(
+      Uri.parse('$_baseUrl/forgot-password'),
+      headers: {'Content-Type': 'application/json'},
+      body: jsonEncode({'email': email}),
+    );
 
+    print('Server response: ${response.statusCode} - ${response.body}');
+    
+    if (response.statusCode == 200) {
       return jsonDecode(response.body);
-    } catch (e) {
-      return {'error': 'حدث خطأ أثناء الاتصال بالخادم'};
+    } else {
+      return {'error': 'فشل إرسال رمز التحقق: ${response.statusCode}'};
     }
+  } catch (e) {
+    print('Error in forgotPassword: $e');
+    return {'error': 'حدث خطأ أثناء الاتصال بالخادم'};
   }
+}
 
-  static Future<Map<String, dynamic>> resetPassword(
-      String email, String code, String newPassword) async {
-    try {
-      final response = await http.post(
-        Uri.parse('$_baseUrl/reset-password'),
-        headers: {'Content-Type': 'application/json'},
-        body: jsonEncode({
-          'email': email,
-          'code': code,
-          'newPassword': newPassword,
-        }),
-      );
+static Future<Map<String, dynamic>> resetPassword(
+    String email, String code, String newPassword) async {
+  try {
+    final response = await http.post(
+      Uri.parse('$_baseUrl/reset-password'),
+      headers: {'Content-Type': 'application/json'},
+      body: jsonEncode({
+        'email': email,
+        'code': code,
+        'newPassword': newPassword,
+      }),
+    );
 
-      return jsonDecode(response.body);
-    } catch (e) {
-      return {'error': 'حدث خطأ أثناء الاتصال بالخادم'};
-    }
+    return jsonDecode(response.body);
+  } catch (e) {
+    print('خطأ في resetPassword: $e'); // طباعة الخطأ في التيرمنال
+    return {'error': 'حدث خطأ أثناء الاتصال بالخادم'};
   }
+}
+
 }

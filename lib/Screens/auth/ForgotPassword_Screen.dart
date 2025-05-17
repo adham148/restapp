@@ -18,32 +18,43 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
   bool _showResetForm = false;
   bool _obscurePassword = true;
 
-  Future<void> _sendResetCode() async {
-    setState(() {
-      _isLoading = true;
-      _errorMessage = null;
-      _successMessage = null;
-    });
 
-    try {
-      final response = await AuthService.forgotPassword(_emailController.text);
-      
-      setState(() {
-        _isLoading = false;
-        if (response != null && response['success'] == true) {
-          _successMessage = 'تم إرسال رمز التحقق إلى بريدك الإلكتروني';
-          _showResetForm = true;
-        } else {
-          _errorMessage = response?['error'] ?? 'فشل إرسال رمز التحقق. يرجى المحاولة مرة أخرى.';
-        }
-      });
-    } catch (e) {
-      setState(() {
-        _isLoading = false;
-        _errorMessage = 'حدث خطأ أثناء الاتصال بالخادم';
-      });
-    }
+Future<void> _sendResetCode() async {
+  if (_emailController.text.isEmpty || !_emailController.text.contains('@')) {
+    setState(() {
+      _errorMessage = 'يرجى إدخال بريد إلكتروني صحيح';
+    });
+    return;
   }
+
+  setState(() {
+    _isLoading = true;
+    _errorMessage = null;
+    _successMessage = null;
+  });
+
+  try {
+    final response = await AuthService.forgotPassword(_emailController.text);
+    print('Response from server: $response'); // للتأكد من البيانات المرجعة
+    
+    setState(() {
+      _isLoading = false;
+      if (response != null && response.containsKey('message')) {
+        _successMessage = response['message'];
+        _showResetForm = true; // هذا السطر سيؤدي إلى عرض نموذج إعادة التعيين
+      } else {
+        _errorMessage = response?['error'] ?? 'فشل إرسال رمز التحقق';
+      }
+    });
+  } catch (e) {
+    print('Error in _sendResetCode: $e');
+    setState(() {
+      _isLoading = false;
+      _errorMessage = 'حدث خطأ أثناء الاتصال بالخادم';
+    });
+  }
+}
+
 
   Future<void> _resetPassword() async {
     setState(() {
@@ -60,10 +71,10 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
       
       setState(() {
         _isLoading = false;
-        if (response != null && response['success'] == true) {
-          _successMessage = 'تم تغيير كلمة المرور بنجاح';
-          Navigator.pop(context); // العودة إلى شاشة تسجيل الدخول بعد النجاح
-        } else {
+      if (response != null && response.containsKey('message')) {
+  _successMessage = response['message']; // أو رسالتك الخاصة
+  _showResetForm = true;
+}else {
           _errorMessage = response?['error'] ?? 'فشل تغيير كلمة المرور. يرجى التحقق من البيانات.';
         }
       });

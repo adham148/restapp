@@ -235,7 +235,12 @@ class _LoginScreenState extends State<LoginScreen> {
                           ),
                         ),
                       ),
-                      // في شاشة LoginScreen، أضف هذا الزر تحت زر إنشاء حساب جديد
+                      
+
+                      const Text('ليس لديك حساب؟', style: TextStyle(color: Colors.white70)),
+                    ],
+                  ),
+                                        // في شاشة LoginScreen، أضف هذا الزر تحت زر إنشاء حساب جديد
 TextButton(
   onPressed: () {
     Navigator.push(
@@ -254,9 +259,6 @@ TextButton(
     ),
   ),
 ),
-                      const Text('ليس لديك حساب؟', style: TextStyle(color: Colors.white70)),
-                    ],
-                  ),
                 ],
                 const SizedBox(height: 20),
                 // زر الانتقال السريع للوحة التحكم (للتطوير فقط)
