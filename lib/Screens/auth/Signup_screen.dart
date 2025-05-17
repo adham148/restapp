@@ -13,7 +13,8 @@ class _SignUpScreenState extends State<SignUpScreen> {
   final TextEditingController _nameController = TextEditingController();
   final TextEditingController _emailController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
-  final TextEditingController _confirmPasswordController = TextEditingController();
+  final TextEditingController _confirmPasswordController =
+      TextEditingController();
   final TextEditingController _phoneController = TextEditingController();
 
   String _message = ""; // لتخزين رسالة التحقق أو الخطأ
@@ -62,9 +63,10 @@ class _SignUpScreenState extends State<SignUpScreen> {
       return;
     }
 
-    if (_phoneController.text.startsWith('7')) {
+// استخدم هذا الشرط الذي يتطلب أن يبدأ بالرقم 7:
+    if (!_phoneController.text.startsWith('7')) {
       setState(() {
-        _message = 'رقم الهاتف لا يمكن أن يبدأ بالرقم 7';
+        _message = 'يجب أن يبدأ رقم الهاتف بالرقم 7';
       });
       return;
     }
@@ -91,14 +93,16 @@ class _SignUpScreenState extends State<SignUpScreen> {
         });
       } else {
         setState(() {
-          _message = 'تم إرسال كود التحقق إلى البريد الإلكتروني'; // عرض رسالة النجاح
+          _message =
+              'تم إرسال كود التحقق إلى البريد الإلكتروني'; // عرض رسالة النجاح
         });
 
         // الانتقال إلى شاشة التحقق
         Navigator.pushReplacement(
           context,
           MaterialPageRoute(
-            builder: (context) => VerificationScreen(email: _emailController.text),
+            builder: (context) =>
+                VerificationScreen(email: _emailController.text),
           ),
         );
       }
@@ -157,7 +161,8 @@ class _SignUpScreenState extends State<SignUpScreen> {
                         border: InputBorder.none,
                         labelText: 'الاسم',
                         labelStyle: TextStyle(color: Colors.black54),
-                        prefixIcon: Icon(Icons.person_outline, color: Colors.black54),
+                        prefixIcon:
+                            Icon(Icons.person_outline, color: Colors.black54),
                       ),
                     ),
                   ),
@@ -180,7 +185,8 @@ class _SignUpScreenState extends State<SignUpScreen> {
                         border: InputBorder.none,
                         labelText: 'البريد الإلكتروني',
                         labelStyle: TextStyle(color: Colors.black54),
-                        prefixIcon: Icon(Icons.email_outlined, color: Colors.black54),
+                        prefixIcon:
+                            Icon(Icons.email_outlined, color: Colors.black54),
                       ),
                     ),
                   ),
@@ -203,10 +209,13 @@ class _SignUpScreenState extends State<SignUpScreen> {
                         border: InputBorder.none,
                         labelText: 'كلمة المرور',
                         labelStyle: const TextStyle(color: Colors.black54),
-                        prefixIcon: const Icon(Icons.lock_outline, color: Colors.black54),
+                        prefixIcon: const Icon(Icons.lock_outline,
+                            color: Colors.black54),
                         suffixIcon: IconButton(
                           icon: Icon(
-                            _isPasswordVisible ? Icons.visibility : Icons.visibility_off,
+                            _isPasswordVisible
+                                ? Icons.visibility
+                                : Icons.visibility_off,
                             color: Colors.black54,
                           ),
                           onPressed: () {
@@ -237,15 +246,19 @@ class _SignUpScreenState extends State<SignUpScreen> {
                         border: InputBorder.none,
                         labelText: 'تأكيد كلمة المرور',
                         labelStyle: const TextStyle(color: Colors.black54),
-                        prefixIcon: const Icon(Icons.lock_outline, color: Colors.black54),
+                        prefixIcon: const Icon(Icons.lock_outline,
+                            color: Colors.black54),
                         suffixIcon: IconButton(
                           icon: Icon(
-                            _isConfirmPasswordVisible ? Icons.visibility : Icons.visibility_off,
+                            _isConfirmPasswordVisible
+                                ? Icons.visibility
+                                : Icons.visibility_off,
                             color: Colors.black54,
                           ),
                           onPressed: () {
                             setState(() {
-                              _isConfirmPasswordVisible = !_isConfirmPasswordVisible;
+                              _isConfirmPasswordVisible =
+                                  !_isConfirmPasswordVisible;
                             });
                           },
                         ),
@@ -269,7 +282,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
                       style: const TextStyle(color: Colors.black),
                       decoration: const InputDecoration(
                         border: InputBorder.none,
-                        labelText: 'رقم الهاتف (9 أرقام، لا يبدأ بـ 7)',
+                        labelText: 'رقم الهاتف (9 أرقام، يجب أن يبدأ بـ 7)',
                         labelStyle: TextStyle(color: Colors.black54),
                         prefixIcon: Icon(Icons.phone, color: Colors.black54),
                       ),
@@ -301,9 +314,11 @@ class _SignUpScreenState extends State<SignUpScreen> {
                     child: Text(
                       _message,
                       style: TextStyle(
-                        color: _message.contains('خطأ') || 
-                               _message.contains('يرجى') || 
-                               _message.contains('يجب') ? Colors.red : Colors.green,
+                        color: _message.contains('خطأ') ||
+                                _message.contains('يرجى') ||
+                                _message.contains('يجب')
+                            ? Colors.red
+                            : Colors.green,
                         fontSize: 16,
                         fontWeight: FontWeight.bold,
                       ),

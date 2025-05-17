@@ -112,7 +112,7 @@ class _CategoriesScreenState extends State<CategoriesScreen> {
           style: ElevatedButton.styleFrom(
             backgroundColor: _accentColor,
             foregroundColor: Colors.white,
-            padding: EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(10),
             ),
@@ -155,16 +155,16 @@ class _CategoriesScreenState extends State<CategoriesScreen> {
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      Icon(Icons.error_outline, color: Colors.red, size: 60),
-                      SizedBox(height: 16),
+                      const Icon(Icons.error_outline, color: Colors.red, size: 60),
+                      const SizedBox(height: 16),
                       Text(
                         'حدث خطأ أثناء جلب البيانات',
                         style: TextStyle(fontSize: 18, color: _textColor),
                       ),
-                      SizedBox(height: 16),
+                      const SizedBox(height: 16),
                       ElevatedButton(
                         onPressed: _refreshCategories,
-                        child: Text('إعادة المحاولة'),
+                        child: const Text('إعادة المحاولة'),
                       ),
                     ],
                   ),
@@ -176,15 +176,15 @@ class _CategoriesScreenState extends State<CategoriesScreen> {
                     children: [
                       Icon(Icons.category_outlined,
                           color: _accentColor, size: 60),
-                      SizedBox(height: 16),
+                      const SizedBox(height: 16),
                       Text(
                         'لا توجد أقسام متاحة',
                         style: TextStyle(fontSize: 18, color: _textColor),
                       ),
-                      SizedBox(height: 16),
+                      const SizedBox(height: 16),
                       ElevatedButton(
                         onPressed: () => _showAddMainCategoryDialog(context),
-                        child: Text('إضافة قسم جديد'),
+                        child: const Text('إضافة قسم جديد'),
                       ),
                     ],
                   ),
@@ -229,7 +229,7 @@ class _CategoriesScreenState extends State<CategoriesScreen> {
             title: Row(
               children: [
                 Icon(Icons.add_box, color: _accentColor),
-                SizedBox(width: 10),
+                const SizedBox(width: 10),
                 Text('إضافة قسم رئيسي', style: TextStyle(color: _textColor)),
               ],
             ),
@@ -245,7 +245,7 @@ class _CategoriesScreenState extends State<CategoriesScreen> {
                       prefixIcon: Icon(Icons.title, color: _accentColor),
                     ),
                   ),
-                  SizedBox(height: 16),
+                  const SizedBox(height: 16),
                   TextField(
                     controller: descriptionController,
                     maxLines: 3,
@@ -255,12 +255,12 @@ class _CategoriesScreenState extends State<CategoriesScreen> {
                       alignLabelWithHint: true,
                     ),
                   ),
-                  SizedBox(height: 16),
-                  Text(
+                  const SizedBox(height: 16),
+                  const Text(
                     'صورة القسم',
                     style: TextStyle(fontSize: 16, color: Colors.grey),
                   ),
-                  SizedBox(height: 8),
+                  const SizedBox(height: 8),
                   GestureDetector(
                     onTap: () async {
                       final image = await _pickImage();
@@ -295,8 +295,8 @@ class _CategoriesScreenState extends State<CategoriesScreen> {
                                   size: 40,
                                   color: _accentColor,
                                 ),
-                                SizedBox(height: 8),
-                                Text(
+                                const SizedBox(height: 8),
+                                const Text(
                                   'اضغط لاختيار صورة',
                                   style: TextStyle(color: Colors.grey),
                                 ),
@@ -310,11 +310,11 @@ class _CategoriesScreenState extends State<CategoriesScreen> {
             actions: [
               TextButton(
                 onPressed: isLoading ? null : () => Navigator.pop(context),
-                child: Text('إلغاء'),
+                child: const Text('إلغاء'),
               ),
               ElevatedButton.icon(
                 icon: isLoading
-                    ? SizedBox(
+                    ? const SizedBox(
                         width: 20,
                         height: 20,
                         child: CircularProgressIndicator(
@@ -322,8 +322,8 @@ class _CategoriesScreenState extends State<CategoriesScreen> {
                           strokeWidth: 2,
                         ),
                       )
-                    : Icon(Icons.save),
-                label: isLoading ? Text('جاري الحفظ...') : Text('حفظ'),
+                    : const Icon(Icons.save),
+                label: isLoading ? const Text('جاري الحفظ...') : const Text('حفظ'),
                 onPressed: isLoading
                     ? null
                     : () async {
@@ -383,12 +383,12 @@ class CategoryItem extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Card(
-      margin: EdgeInsets.symmetric(vertical: 4, horizontal: 8),
+      margin: const EdgeInsets.symmetric(vertical: 4, horizontal: 8),
       child: ExpansionTile(
         leading: _buildCategoryImage(),
         title: Text(
           category.name,
-          style: TextStyle(
+          style: const TextStyle(
             fontWeight: FontWeight.bold,
             fontSize: 16,
           ),
@@ -415,8 +415,8 @@ class CategoryItem extends StatelessWidget {
               child: Row(
                 children: [
                   Icon(Icons.add, color: accentColor),
-                  SizedBox(width: 8),
-                  Text('إضافة قسم فرعي'),
+                  const SizedBox(width: 8),
+                  const Text('إضافة قسم فرعي'),
                 ],
               ),
             ),
@@ -425,12 +425,12 @@ class CategoryItem extends StatelessWidget {
               child: Row(
                 children: [
                   Icon(Icons.edit, color: accentColor),
-                  SizedBox(width: 8),
-                  Text('تعديل'),
+                  const SizedBox(width: 8),
+                  const Text('تعديل'),
                 ],
               ),
             ),
-            PopupMenuItem<String>(
+            const PopupMenuItem<String>(
               value: 'delete',
               child: Row(
                 children: [
@@ -475,7 +475,7 @@ class CategoryItem extends StatelessWidget {
                 category.image!,
                 fit: BoxFit.cover,
                 errorBuilder: (context, error, stackTrace) {
-                  return Icon(
+                  return const Icon(
                     Icons.broken_image,
                     color: Colors.grey,
                   );
@@ -512,8 +512,8 @@ class CategoryItem extends StatelessWidget {
             title: Row(
               children: [
                 Icon(Icons.subdirectory_arrow_right, color: accentColor),
-                SizedBox(width: 10),
-                Text('إضافة قسم فرعي', style: TextStyle(color: Colors.white)),
+                const SizedBox(width: 10),
+                const Text('إضافة قسم فرعي', style: TextStyle(color: Colors.white)),
               ],
             ),
             content: SingleChildScrollView(
@@ -528,7 +528,7 @@ class CategoryItem extends StatelessWidget {
                       prefixIcon: Icon(Icons.title, color: accentColor),
                     ),
                   ),
-                  SizedBox(height: 16),
+                  const SizedBox(height: 16),
                   TextField(
                     controller: descriptionController,
                     maxLines: 3,
@@ -538,12 +538,12 @@ class CategoryItem extends StatelessWidget {
                       alignLabelWithHint: true,
                     ),
                   ),
-                  SizedBox(height: 16),
-                  Text(
+                  const SizedBox(height: 16),
+                  const Text(
                     'صورة القسم',
                     style: TextStyle(fontSize: 16, color: Colors.grey),
                   ),
-                  SizedBox(height: 8),
+                  const SizedBox(height: 8),
                   GestureDetector(
                     onTap: () async {
                       final image = await pickImage();
@@ -577,8 +577,8 @@ class CategoryItem extends StatelessWidget {
                                   size: 40,
                                   color: accentColor,
                                 ),
-                                SizedBox(height: 8),
-                                Text(
+                                const SizedBox(height: 8),
+                                const Text(
                                   'اضغط لاختيار صورة',
                                   style: TextStyle(color: Colors.grey),
                                 ),
@@ -592,11 +592,11 @@ class CategoryItem extends StatelessWidget {
             actions: [
               TextButton(
                 onPressed: dialogLoading ? null : () => Navigator.pop(context),
-                child: Text('إلغاء'),
+                child: const Text('إلغاء'),
               ),
               ElevatedButton.icon(
                 icon: dialogLoading
-                    ? SizedBox(
+                    ? const SizedBox(
                         width: 20,
                         height: 20,
                         child: CircularProgressIndicator(
@@ -604,8 +604,8 @@ class CategoryItem extends StatelessWidget {
                           strokeWidth: 2,
                         ),
                       )
-                    : Icon(Icons.save),
-                label: dialogLoading ? Text('جاري الحفظ...') : Text('حفظ'),
+                    : const Icon(Icons.save),
+                label: dialogLoading ? const Text('جاري الحفظ...') : const Text('حفظ'),
                 onPressed: dialogLoading
                     ? null
                     : () async {
@@ -660,8 +660,8 @@ class CategoryItem extends StatelessWidget {
             title: Row(
               children: [
                 Icon(Icons.edit, color: accentColor),
-                SizedBox(width: 10),
-                Text('تعديل القسم', style: TextStyle(color: Colors.white)),
+                const SizedBox(width: 10),
+                const Text('تعديل القسم', style: TextStyle(color: Colors.white)),
               ],
             ),
             content: SingleChildScrollView(
@@ -676,7 +676,7 @@ class CategoryItem extends StatelessWidget {
                       prefixIcon: Icon(Icons.title, color: accentColor),
                     ),
                   ),
-                  SizedBox(height: 16),
+                  const SizedBox(height: 16),
                   TextField(
                     controller: descriptionController,
                     maxLines: 3,
@@ -686,12 +686,12 @@ class CategoryItem extends StatelessWidget {
                       alignLabelWithHint: true,
                     ),
                   ),
-                  SizedBox(height: 16),
-                  Text(
+                  const SizedBox(height: 16),
+                  const Text(
                     'صورة القسم',
                     style: TextStyle(fontSize: 16, color: Colors.grey),
                   ),
-                  SizedBox(height: 8),
+                  const SizedBox(height: 8),
                   Row(
                     children: [
                       Expanded(
@@ -729,7 +729,7 @@ class CategoryItem extends StatelessWidget {
                                           fit: BoxFit.cover,
                                           errorBuilder:
                                               (context, error, stackTrace) {
-                                            return Center(
+                                            return const Center(
                                               child: Icon(
                                                 Icons.broken_image,
                                                 color: Colors.grey,
@@ -748,8 +748,8 @@ class CategoryItem extends StatelessWidget {
                                             size: 40,
                                             color: accentColor,
                                           ),
-                                          SizedBox(height: 8),
-                                          Text(
+                                          const SizedBox(height: 8),
+                                          const Text(
                                             'اضغط لاختيار صورة',
                                             style:
                                                 TextStyle(color: Colors.grey),
@@ -767,11 +767,11 @@ class CategoryItem extends StatelessWidget {
             actions: [
               TextButton(
                 onPressed: dialogLoading ? null : () => Navigator.pop(context),
-                child: Text('إلغاء'),
+                child: const Text('إلغاء'),
               ),
               ElevatedButton.icon(
                 icon: dialogLoading
-                    ? SizedBox(
+                    ? const SizedBox(
                         width: 20,
                         height: 20,
                         child: CircularProgressIndicator(
@@ -779,8 +779,8 @@ class CategoryItem extends StatelessWidget {
                           strokeWidth: 2,
                         ),
                       )
-                    : Icon(Icons.save),
-                label: dialogLoading ? Text('جاري الحفظ...') : Text('حفظ'),
+                    : const Icon(Icons.save),
+                label: dialogLoading ? const Text('جاري الحفظ...') : const Text('حفظ'),
                 onPressed: dialogLoading
                     ? null
                     : () async {
@@ -824,7 +824,7 @@ class CategoryItem extends StatelessWidget {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        title: Row(
+        title: const Row(
           children: [
             Icon(Icons.warning_amber_rounded, color: Colors.red),
             SizedBox(width: 10),
@@ -833,28 +833,28 @@ class CategoryItem extends StatelessWidget {
         ),
         content: RichText(
           text: TextSpan(
-            style: TextStyle(color: Colors.white, fontSize: 16),
+            style: const TextStyle(color: Colors.white, fontSize: 16),
             children: [
-              TextSpan(text: 'هل أنت متأكد من حذف '),
+              const TextSpan(text: 'هل أنت متأكد من حذف '),
               TextSpan(
                 text: category.name,
-                style: TextStyle(
+                style: const TextStyle(
                   fontWeight: FontWeight.bold,
                   color: Colors.red,
                 ),
               ),
-              TextSpan(text: '؟\n\nلا يمكن التراجع عن هذا الإجراء.'),
+              const TextSpan(text: '؟\n\nلا يمكن التراجع عن هذا الإجراء.'),
             ],
           ),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
-            child: Text('إلغاء'),
+            child: const Text('إلغاء'),
           ),
           ElevatedButton.icon(
-            icon: Icon(Icons.delete_forever),
-            label: Text('حذف'),
+            icon: const Icon(Icons.delete_forever),
+            label: const Text('حذف'),
             style: ElevatedButton.styleFrom(
               backgroundColor: Colors.red,
               foregroundColor: Colors.white,

@@ -7,6 +7,7 @@ import 'package:flutter_downloader/flutter_downloader.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:youtube_player_flutter/youtube_player_flutter.dart'; // Added for YouTube support
 
 class VideoDetailsScreen extends StatefulWidget {
   final String videoId;
@@ -29,6 +30,7 @@ class _VideoDetailsScreenState extends State<VideoDetailsScreen> with SingleTick
   late Future<Map<String, dynamic>> videoSuggestions;
   VideoPlayerController? _videoPlayerController;
   ChewieController? _chewieController;
+  YoutubePlayerController? _youtubePlayerController; // Added for YouTube support
   bool _isLoading = true;
   bool _hasError = false;
   String _errorMessage = '';
@@ -37,6 +39,8 @@ class _VideoDetailsScreenState extends State<VideoDetailsScreen> with SingleTick
   AnimationController? _favoriteController;
   Animation<double>? _favoriteAnimation;
   String? _videoUrl;
+  bool _isYoutubeVideo = false; // Added to check if it's a YouTube video
+  String? _youtubeVideoId; // Added to store YouTube video ID
   bool _isBookmarked = false;
   int _bookmarksCount = 0; 
   bool _isDownloading = false;
@@ -117,6 +121,9 @@ class _VideoDetailsScreenState extends State<VideoDetailsScreen> with SingleTick
       final videoData = await videoDetails;
       _videoUrl = videoData['video']['url'];
       
+      // التحقق مما إذا كان رابط يوتيوب
+      _isYoutubeVideo = _videoUrl?.contains('youtube.com') == true || _videoUrl?.contains('youtu.be') == true;
+      
       setState(() {
         _isFavorite = videoData['video']['favorites'] ?? false;
         // لا نقوم بتحديث _isBookmarked هنا لأننا نعتمد على التخزين المحلي
@@ -124,7 +131,13 @@ class _VideoDetailsScreenState extends State<VideoDetailsScreen> with SingleTick
         _bookmarksCount = videoData['video']['bookmarksCount'] ?? 0; // إضافة عدد الحفظ
       });
       
-      await _initializeVideoPlayer(_videoUrl!);
+      if (_isYoutubeVideo) {
+        // استخراج معرف فيديو يوتيوب
+        _youtubeVideoId = _extractYoutubeVideoId(_videoUrl!);
+        await _initializeYoutubePlayer(_youtubeVideoId!);
+      } else {
+        await _initializeVideoPlayer(_videoUrl!);
+      }
       
       setState(() {
         _isLoading = false;
@@ -136,6 +149,21 @@ class _VideoDetailsScreenState extends State<VideoDetailsScreen> with SingleTick
         _errorMessage = 'فشل تحميل الفيديو: ${e.toString()}';
       });
     }
+  }
+
+  // دالة استخراج معرف فيديو يوتيوب من الرابط
+  String _extractYoutubeVideoId(String url) {
+    RegExp regExp = RegExp(
+      r'^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|\&v=)([^#\&\?]*).*',
+      caseSensitive: false,
+      multiLine: false,
+    );
+    
+    final match = regExp.firstMatch(url);
+    String? videoId = match?.group(2);
+    
+    // في حالة عدم العثور على المعرف، نعيد الرابط كامل لاستخدامه في YoutubePlayerController
+    return videoId ?? YoutubePlayer.convertUrlToId(url) ?? '';
   }
 
   Future<void> _toggleBookmark() async {
@@ -209,6 +237,18 @@ class _VideoDetailsScreenState extends State<VideoDetailsScreen> with SingleTick
   }
 
   Future<void> _downloadVideo() async {
+    // إذا كان فيديو يوتيوب، نعرض رسالة أنه لا يمكن تنزيله
+    if (_isYoutubeVideo) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('لا يمكن تنزيل فيديوهات يوتيوب مباشرة'),
+          backgroundColor: Colors.orange,
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+      return;
+    }
+    
     if (_videoUrl == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('رابط الفيديو غير متاح')),
@@ -266,6 +306,34 @@ class _VideoDetailsScreenState extends State<VideoDetailsScreen> with SingleTick
     }
   }
 
+  // تهيئة مشغل يوتيوب
+  Future<void> _initializeYoutubePlayer(String videoId) async {
+    try {
+      _youtubePlayerController = YoutubePlayerController(
+        initialVideoId: videoId,
+        flags: const YoutubePlayerFlags(
+          autoPlay: true,
+          mute: false,
+          disableDragSeek: false,
+          loop: false,
+          isLive: false,
+          forceHD: false,
+          enableCaption: true,
+        ),
+      );
+      
+      _youtubePlayerController!.addListener(() {
+        // يمكن إضافة استجابة لتغيير حالة مشغل اليوتيوب هنا
+      });
+      
+    } catch (e) {
+      setState(() {
+        _hasError = true;
+        _errorMessage = 'فشل تشغيل فيديو يوتيوب: ${e.toString()}';
+      });
+    }
+  }
+
   Future<void> _initializeVideoPlayer(String videoUrl) async {
     _videoPlayerController = VideoPlayerController.network(videoUrl);
     
@@ -317,6 +385,17 @@ class _VideoDetailsScreenState extends State<VideoDetailsScreen> with SingleTick
   }
   
   void _showPlaybackSpeedDialog() {
+    // لا يمكن تغيير سرعة التشغيل في فيديوهات يوتيوب عبر API مباشرة
+    if (_isYoutubeVideo) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('لا يمكن تغيير سرعة التشغيل لفيديوهات يوتيوب من تطبيقنا'),
+          backgroundColor: Colors.orange,
+        ),
+      );
+      return;
+    }
+    
     // قائمة سرعات التشغيل المتاحة
     final List<double> speeds = [0.25, 0.5, 0.75, 1.0, 1.25, 1.5, 1.75, 2.0];
     
@@ -368,6 +447,17 @@ class _VideoDetailsScreenState extends State<VideoDetailsScreen> with SingleTick
   }
   
   void _showQualityDialog() {
+    // لا يمكن تغيير الدقة في فيديوهات يوتيوب عبر API مباشرة
+    if (_isYoutubeVideo) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('يتم ضبط دقة فيديوهات يوتيوب تلقائيًا حسب جودة الاتصال'),
+          backgroundColor: Colors.orange,
+        ),
+      );
+      return;
+    }
+    
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
@@ -436,6 +526,7 @@ class _VideoDetailsScreenState extends State<VideoDetailsScreen> with SingleTick
   void dispose() {
     _videoPlayerController?.dispose();
     _chewieController?.dispose();
+    _youtubePlayerController?.dispose(); // تحرير موارد مشغل يوتيوب
     _favoriteController?.dispose();
     super.dispose();
   }
@@ -518,17 +609,30 @@ class _VideoDetailsScreenState extends State<VideoDetailsScreen> with SingleTick
                 color: Colors.black,
                 child: Stack(
                   children: [
-                    // مشغل الفيديو
-                    _chewieController != null
-                      ? Chewie(controller: _chewieController!)
-                      : Container(
-                          color: Colors.black,
-                          child: const Center(
-                            child: CircularProgressIndicator(
-                              valueColor: AlwaysStoppedAnimation<Color>(Colors.red),
+                    // مشغل الفيديو - اختيار المشغل المناسب حسب نوع الفيديو
+                    _isYoutubeVideo && _youtubePlayerController != null
+                      ? YoutubePlayer(
+                          controller: _youtubePlayerController!,
+                          showVideoProgressIndicator: true,
+                          progressIndicatorColor: Colors.red,
+                          progressColors: const ProgressBarColors(
+                            playedColor: Colors.red,
+                            handleColor: Colors.redAccent,
+                          ),
+                          onReady: () {
+                            print('Player is ready.');
+                          },
+                        )
+                      : _chewieController != null
+                        ? Chewie(controller: _chewieController!)
+                        : Container(
+                            color: Colors.black,
+                            child: const Center(
+                              child: CircularProgressIndicator(
+                                valueColor: AlwaysStoppedAnimation<Color>(Colors.red),
+                              ),
                             ),
                           ),
-                        ),
                     
                     // زر العودة
                     Positioned(
@@ -546,8 +650,8 @@ class _VideoDetailsScreenState extends State<VideoDetailsScreen> with SingleTick
                       ),
                     ),
                     
-                    // إضافة مؤشر سرعة التشغيل (اختياري)
-                    if (_playbackSpeed != 1.0)
+                    // إضافة مؤشر سرعة التشغيل (اختياري) - فقط للفيديوهات العادية
+                    if (!_isYoutubeVideo && _playbackSpeed != 1.0)
                       Positioned(
                         top: 40,
                         right: 16,
@@ -564,6 +668,39 @@ class _VideoDetailsScreenState extends State<VideoDetailsScreen> with SingleTick
                               fontSize: 12,
                               fontWeight: FontWeight.bold,
                             ),
+                          ),
+                        ),
+                      ),
+                    
+                    // مؤشر لفيديوهات يوتيوب
+                    if (_isYoutubeVideo)
+                      Positioned(
+                        top: 40,
+                        right: 16,
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
+                          decoration: BoxDecoration(
+                            color: Colors.red.withOpacity(0.8),
+                            borderRadius: BorderRadius.circular(20),
+                          ),
+                          child: const Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(
+                                Icons.play_circle_fill,
+                                color: Colors.white,
+                                size: 14,
+                              ),
+                              SizedBox(width: 4),
+                              Text(
+                                'يوتيوب',
+                                style: TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ],
                           ),
                         ),
                       ),
@@ -712,33 +849,57 @@ class _VideoDetailsScreenState extends State<VideoDetailsScreen> with SingleTick
                                 
                                 const Spacer(),
                                 
-                                // زر ضبط الدقة - إضافة جديدة
-                                InkWell(
-                                  onTap: _showQualityDialog,
-                                  child: Container(
-                                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-                                    decoration: BoxDecoration(
-                                      color: Colors.red.withOpacity(0.3),
-                                      borderRadius: BorderRadius.circular(20),
-                                    ),
-                                    child: Row(
-                                      children: [
-                                        const Icon(Icons.settings, 
-                                          color: Colors.white,
-                                          size: 16,
-                                        ),
-                                        const SizedBox(width: 4),
-                                        Text(
-                                          _currentQuality,
-                                          style: const TextStyle(
+                                // زر نوع الفيديو أو ضبط الدقة
+                                _isYoutubeVideo
+                                  ? Container(
+                                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                                      decoration: BoxDecoration(
+                                        color: Colors.red.withOpacity(0.3),
+                                        borderRadius: BorderRadius.circular(20),
+                                      ),
+                                      child: const Row(
+                                        children: [
+                                          Icon(Icons.play_circle_fill, 
                                             color: Colors.white,
-                                            fontSize: 14,
+                                            size: 16,
                                           ),
+                                          SizedBox(width: 4),
+                                          Text(
+                                            'يوتيوب',
+                                            style: TextStyle(
+                                              color: Colors.white,
+                                              fontSize: 14,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    )
+                                  : InkWell(
+                                      onTap: _showQualityDialog,
+                                      child: Container(
+                                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                                        decoration: BoxDecoration(
+                                          color: Colors.red.withOpacity(0.3),
+                                          borderRadius: BorderRadius.circular(20),
                                         ),
-                                      ],
+                                        child: Row(
+                                          children: [
+                                            const Icon(Icons.settings, 
+                                              color: Colors.white,
+                                              size: 16,
+                                            ),
+                                            const SizedBox(width: 4),
+                                            Text(
+                                              _currentQuality,
+                                              style: const TextStyle(
+                                                color: Colors.white,
+                                                fontSize: 14,
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      ),
                                     ),
-                                  ),
-                                ),
                               ],
                             ),
                             
@@ -777,13 +938,13 @@ class _VideoDetailsScreenState extends State<VideoDetailsScreen> with SingleTick
                                     label: 'تنزيل',
                                     onTap: _downloadVideo,
                                     isLoading: _isDownloading,
-                                    color: Colors.white,
+                                    color: _isYoutubeVideo ? Colors.grey : Colors.white, // تغيير لون الزر إذا كان فيديو يوتيوب
                                   ),
                                   _buildActionButton(
                                     icon: Icons.speed,
                                     label: 'السرعة',
                                     onTap: _showPlaybackSpeedDialog,
-                                    color: Colors.white,
+                                    color: _isYoutubeVideo ? Colors.grey : Colors.white, // تغيير لون الزر إذا كان فيديو يوتيوب
                                   ),
                                 ],
                               ),
@@ -946,6 +1107,10 @@ class _VideoDetailsScreenState extends State<VideoDetailsScreen> with SingleTick
   }
 
   Widget _buildSuggestedVideoCard(dynamic video) {
+    // التحقق من نوع الفيديو
+    final bool isYoutube = video['url']?.contains('youtube.com') == true || 
+                           video['url']?.contains('youtu.be') == true;
+                           
     return Container(
       margin: const EdgeInsets.only(bottom: 16),
       decoration: BoxDecoration(
@@ -992,6 +1157,38 @@ class _VideoDetailsScreenState extends State<VideoDetailsScreen> with SingleTick
                     },
                   ),
                 ),
+                // إضافة شارة يوتيوب إذا كان الفيديو من يوتيوب
+                if (isYoutube)
+                  Positioned(
+                    top: 8,
+                    right: 8,
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
+                      decoration: BoxDecoration(
+                        color: Colors.red,
+                        borderRadius: BorderRadius.circular(4),
+                      ),
+                      child: const Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(
+                            Icons.play_arrow,
+                            color: Colors.white,
+                            size: 12,
+                          ),
+                          SizedBox(width: 2),
+                          Text(
+                            'يوتيوب',
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontSize: 9,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
                 // مدة الفيديو
                 Positioned(
                   bottom: 8,

@@ -39,11 +39,11 @@ Future<void> _sendResetCode() async {
     
     setState(() {
       _isLoading = false;
-      if (response != null && response.containsKey('message')) {
+      if (response.containsKey('message')) {
         _successMessage = response['message'];
         _showResetForm = true; // هذا السطر سيؤدي إلى عرض نموذج إعادة التعيين
       } else {
-        _errorMessage = response?['error'] ?? 'فشل إرسال رمز التحقق';
+        _errorMessage = response['error'] ?? 'فشل إرسال رمز التحقق';
       }
     });
   } catch (e) {
@@ -71,11 +71,11 @@ Future<void> _sendResetCode() async {
       
       setState(() {
         _isLoading = false;
-      if (response != null && response.containsKey('message')) {
+      if (response.containsKey('message')) {
   _successMessage = response['message']; // أو رسالتك الخاصة
   _showResetForm = true;
 }else {
-          _errorMessage = response?['error'] ?? 'فشل تغيير كلمة المرور. يرجى التحقق من البيانات.';
+          _errorMessage = response['error'] ?? 'فشل تغيير كلمة المرور. يرجى التحقق من البيانات.';
         }
       });
     } catch (e) {

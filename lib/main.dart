@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_downloader/flutter_downloader.dart';
-import 'package:flutter_background_service/flutter_background_service.dart';
 import 'Screens/auth/Login_screen.dart';
 import 'Screens/home_screen.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';

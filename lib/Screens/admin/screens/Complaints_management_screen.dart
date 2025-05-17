@@ -86,7 +86,7 @@ class Response {
 }
 
 class ComplaintsScreen extends StatefulWidget {
-  const ComplaintsScreen({Key? key}) : super(key: key);
+  const ComplaintsScreen({super.key});
 
   @override
   _ComplaintsScreenState createState() => _ComplaintsScreenState();
@@ -327,10 +327,10 @@ class ComplaintDetailScreen extends StatefulWidget {
   final VoidCallback onComplaintUpdated;
 
   const ComplaintDetailScreen({
-    Key? key,
+    super.key,
     required this.complaintId,
     required this.onComplaintUpdated,
-  }) : super(key: key);
+  });
 
   @override
   _ComplaintDetailScreenState createState() => _ComplaintDetailScreenState();

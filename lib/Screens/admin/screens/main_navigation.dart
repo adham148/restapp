@@ -18,10 +18,10 @@ class _MainNavigationState extends State<MainNavigation> {
 
   final List<Widget> _screens = [
     StatsScreen(),
-    CategoriesScreen(),
-    VideoManagementScreen(),
-    UserManagementScreen(), // Added user management screen
-    ComplaintsScreen(), // Added complaints management screen
+    const CategoriesScreen(),
+    const VideoManagementScreen(),
+    const UserManagementScreen(), // Added user management screen
+    const ComplaintsScreen(), // Added complaints management screen
   ];
 
   @override

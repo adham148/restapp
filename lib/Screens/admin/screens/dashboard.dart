@@ -8,6 +8,8 @@ import 'dart:math' as math;
 import '../../auth/Login_screen.dart';
 
 class StatsScreen extends StatefulWidget {
+  const StatsScreen({super.key});
+
   @override
   _StatsScreenState createState() => _StatsScreenState();
 }
@@ -21,10 +23,10 @@ class _StatsScreenState extends State<StatsScreen> with TickerProviderStateMixin
 
   // تدرجات ألوان جذابة وعصرية
   final List<List<Color>> gradients = [
-    [Color(0xFFFF416C), Color(0xFFFF4B2B)], // تدرج أحمر جميل
-    [Color(0xFF8A2387), Color(0xFFE94057), Color(0xFFF27121)], // تدرج متعدد الألوان
-    [Color(0xFF1A2980), Color(0xFF26D0CE)], // تدرج أزرق فيروزي
-    [Color(0xFF6A11CB), Color(0xFF2575FC)], // تدرج بنفسجي
+    [const Color(0xFFFF416C), const Color(0xFFFF4B2B)], // تدرج أحمر جميل
+    [const Color(0xFF8A2387), const Color(0xFFE94057), const Color(0xFFF27121)], // تدرج متعدد الألوان
+    [const Color(0xFF1A2980), const Color(0xFF26D0CE)], // تدرج أزرق فيروزي
+    [const Color(0xFF6A11CB), const Color(0xFF2575FC)], // تدرج بنفسجي
   ];
 
   @override
@@ -32,7 +34,7 @@ class _StatsScreenState extends State<StatsScreen> with TickerProviderStateMixin
     super.initState();
     _animationController = AnimationController(
       vsync: this,
-      duration: Duration(milliseconds: 1500),
+      duration: const Duration(milliseconds: 1500),
     );
     _animation = CurvedAnimation(
       parent: _animationController,
@@ -79,7 +81,7 @@ class _StatsScreenState extends State<StatsScreen> with TickerProviderStateMixin
     return Scaffold(
 backgroundColor: Colors.black, // بدلاً من Color(0xFF0F1221)
       appBar: AppBar(
-        title: Text(
+        title: const Text(
           'إحصائيات النظام', 
           style: TextStyle(
             fontWeight: FontWeight.bold, 
@@ -94,7 +96,7 @@ leading: Row(
   mainAxisSize: MainAxisSize.min,
   children: [
     IconButton(
-      icon: Icon(Icons.bar_chart_rounded, color: Color(0xFFFF416C)),
+      icon: const Icon(Icons.bar_chart_rounded, color: Color(0xFFFF416C)),
       onPressed: () {}, // Add functionality here if needed
     ),
     IconButton(
@@ -114,7 +116,7 @@ leading: Row(
 ),
       ),
       body: isLoading
-          ? Center(
+          ? const Center(
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
@@ -140,8 +142,8 @@ leading: Row(
           : error != null
               ? Center(
                   child: Container(
-                    padding: EdgeInsets.all(20),
-                    margin: EdgeInsets.all(20),
+                    padding: const EdgeInsets.all(20),
+                    margin: const EdgeInsets.all(20),
                     decoration: BoxDecoration(
                       color: Colors.red.withOpacity(0.1),
                       borderRadius: BorderRadius.circular(15),
@@ -150,8 +152,8 @@ leading: Row(
                     child: Column(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        Icon(Icons.error_outline, color: Colors.red, size: 60),
-                        SizedBox(height: 20),
+                        const Icon(Icons.error_outline, color: Colors.red, size: 60),
+                        const SizedBox(height: 20),
                         Text(
                           error!, 
                           style: TextStyle(
@@ -161,7 +163,7 @@ leading: Row(
                           ),
                           textAlign: TextAlign.center,
                         ),
-                        SizedBox(height: 20),
+                        const SizedBox(height: 20),
                         ElevatedButton.icon(
                           onPressed: () {
                             setState(() {
@@ -170,12 +172,12 @@ leading: Row(
                             });
                             fetchStats();
                           },
-                          icon: Icon(Icons.refresh),
-                          label: Text('إعادة المحاولة'),
+                          icon: const Icon(Icons.refresh),
+                          label: const Text('إعادة المحاولة'),
                           style: ElevatedButton.styleFrom(
-                            backgroundColor: Color(0xFFFF416C),
+                            backgroundColor: const Color(0xFFFF416C),
                             foregroundColor: Colors.white,
-                            padding: EdgeInsets.symmetric(horizontal: 30, vertical: 12),
+                            padding: const EdgeInsets.symmetric(horizontal: 30, vertical: 12),
                             shape: RoundedRectangleBorder(
                               borderRadius: BorderRadius.circular(30),
                             ),
@@ -186,8 +188,8 @@ leading: Row(
                   ),
                 )
               : SingleChildScrollView(
-                  padding: EdgeInsets.all(16),
-                  physics: BouncingScrollPhysics(),
+                  padding: const EdgeInsets.all(16),
+                  physics: const BouncingScrollPhysics(),
                   child: Directionality(
                     textDirection: TextDirection.rtl,
                     child: FadeTransition(
@@ -196,9 +198,9 @@ leading: Row(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           _buildHeaderSection(),
-                          SizedBox(height: 30),
+                          const SizedBox(height: 30),
                           _buildVideosSection(),
-                          SizedBox(height: 30),
+                          const SizedBox(height: 30),
                           _buildCategoriesSection(),
                         ],
                       ),
@@ -227,32 +229,32 @@ leading: Row(
           BoxShadow(
             color: gradients[0][0].withOpacity(0.3),
             blurRadius: 20,
-            offset: Offset(0, 10),
+            offset: const Offset(0, 10),
             spreadRadius: -5,
           ),
         ],
       ),
       child: Padding(
-        padding: EdgeInsets.all(25),
+        padding: const EdgeInsets.all(25),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Row(
               children: [
                 Container(
-                  padding: EdgeInsets.all(10),
+                  padding: const EdgeInsets.all(10),
                   decoration: BoxDecoration(
                     color: Colors.white.withOpacity(0.2),
                     borderRadius: BorderRadius.circular(12),
                   ),
-                  child: Icon(
+                  child: const Icon(
                     Icons.insights_rounded,
                     color: Colors.white,
                     size: 24,
                   ),
                 ),
-                SizedBox(width: 15),
-                Text(
+                const SizedBox(width: 15),
+                const Text(
                   'الإحصائيات العامة',
                   style: TextStyle(
                     fontSize: 24,
@@ -263,11 +265,11 @@ leading: Row(
                 ),
               ],
             ),
-            SizedBox(height: 30),
+            const SizedBox(height: 30),
             GridView.count(
               crossAxisCount: 2,
               shrinkWrap: true,
-              physics: NeverScrollableScrollPhysics(),
+              physics: const NeverScrollableScrollPhysics(),
               mainAxisSpacing: 20,
               crossAxisSpacing: 20,
               childAspectRatio: 1.5,
@@ -276,25 +278,25 @@ leading: Row(
                   title: 'الفيديوهات',
                   value: totalVideos.toString(),
                   icon: Icons.video_library_rounded,
-                  gradient: [Color(0xFFFFB347), Color(0xFFFFCC33)],
+                  gradient: [const Color(0xFFFFB347), const Color(0xFFFFCC33)],
                 ),
                 _buildStatCard(
                   title: 'المشاهدات',
                   value: totalViews.toString(),
                   icon: Icons.visibility_rounded,
-                  gradient: [Color(0xFF0BA360), Color(0xFF3CBA92)],
+                  gradient: [const Color(0xFF0BA360), const Color(0xFF3CBA92)],
                 ),
                 _buildStatCard(
                   title: 'الأقسام',
                   value: totalCategories.toString(),
                   icon: Icons.category_rounded,
-                  gradient: [Color(0xFF396afc), Color(0xFF2948ff)],
+                  gradient: [const Color(0xFF396afc), const Color(0xFF2948ff)],
                 ),
                 _buildStatCard(
                   title: 'المسلسلات',
                   value: totalSeries.toString(),
                   icon: Icons.movie_rounded,
-                  gradient: [Color(0xFF834d9b), Color(0xFFd04ed6)],
+                  gradient: [const Color(0xFF834d9b), const Color(0xFFd04ed6)],
                 ),
               ],
             ),
@@ -324,7 +326,7 @@ leading: Row(
         ),
       ),
       child: Padding(
-        padding: EdgeInsets.all(15),
+        padding: const EdgeInsets.all(15),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           mainAxisAlignment: MainAxisAlignment.center,
@@ -332,20 +334,20 @@ leading: Row(
             Row(
               children: [
                 Container(
-                  padding: EdgeInsets.all(8),
+                  padding: const EdgeInsets.all(8),
                   decoration: BoxDecoration(
                     gradient: LinearGradient(colors: gradient),
                     borderRadius: BorderRadius.circular(12),
                   ),
                   child: Icon(icon, color: Colors.white, size: 20),
                 ),
-                Spacer(),
+                const Spacer(),
                 Icon(
                   Icons.arrow_upward_rounded,
                   color: gradient[0],
                   size: 16,
                 ),
-                SizedBox(width: 4),
+                const SizedBox(width: 4),
                 Text(
                   '10%',
                   style: TextStyle(
@@ -356,16 +358,16 @@ leading: Row(
                 ),
               ],
             ),
-            SizedBox(height: 15),
+            const SizedBox(height: 15),
             Text(
               value,
-              style: TextStyle(
+              style: const TextStyle(
                 fontSize: 24,
                 fontWeight: FontWeight.bold,
                 color: Colors.white,
               ),
             ),
-            SizedBox(height: 5),
+            const SizedBox(height: 5),
             Text(
               title,
               style: TextStyle(
@@ -386,27 +388,27 @@ leading: Row(
 
     return Container(
       decoration: BoxDecoration(
-        color: Color(0xFF161A30),
+        color: const Color(0xFF161A30),
         borderRadius: BorderRadius.circular(24),
         boxShadow: [
           BoxShadow(
             color: Colors.black.withOpacity(0.2),
             blurRadius: 15,
-            offset: Offset(0, 5),
+            offset: const Offset(0, 5),
           ),
         ],
       ),
       child: Padding(
-        padding: EdgeInsets.all(25),
+        padding: const EdgeInsets.all(25),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             _buildSectionTitle('إحصائيات الفيديوهات', Icons.play_circle_filled_rounded, gradients[0]),
-            SizedBox(height: 30),
+            const SizedBox(height: 30),
             
             // Category Distribution Chart
             if (byCategory.isNotEmpty) ...[
-              Text(
+              const Text(
                 'توزيع الفيديوهات حسب القسم',
                 style: TextStyle(
                   fontSize: 18,
@@ -414,12 +416,12 @@ leading: Row(
                   color: Colors.white,
                 ),
               ),
-              SizedBox(height: 20),
+              const SizedBox(height: 20),
               Container(
                 height: 300,
-                padding: EdgeInsets.all(20),
+                padding: const EdgeInsets.all(20),
                 decoration: BoxDecoration(
-                  gradient: LinearGradient(
+                  gradient: const LinearGradient(
                     colors: [Color(0xFF1F2335), Color(0xFF131629)],
                     begin: Alignment.topCenter,
                     end: Alignment.bottomCenter,
@@ -440,13 +442,13 @@ leading: Row(
                       final categoryName = item['category']?['name'] ?? 'غير معروف';
                       
                       final colors = [
-                        Color(0xFFFF6B6B),
-                        Color(0xFF4ECDC4),
-                        Color(0xFFFFD166),
-                        Color(0xFF118AB2),
-                        Color(0xFF06D6A0),
-                        Color(0xFFEF476F),
-                        Color(0xFF073B4C),
+                        const Color(0xFFFF6B6B),
+                        const Color(0xFF4ECDC4),
+                        const Color(0xFFFFD166),
+                        const Color(0xFF118AB2),
+                        const Color(0xFF06D6A0),
+                        const Color(0xFFEF476F),
+                        const Color(0xFF073B4C),
                       ];
                       
                       return PieChartSectionData(
@@ -454,7 +456,7 @@ leading: Row(
                         value: count.toDouble(),
                         title: '$count',
                         radius: 120,
-                        titleStyle: TextStyle(
+                        titleStyle: const TextStyle(
                           fontSize: 16,
                           fontWeight: FontWeight.bold,
                           color: Colors.white,
@@ -471,12 +473,12 @@ leading: Row(
                   ),
                 ),
               ),
-              SizedBox(height: 30),
+              const SizedBox(height: 30),
             ],
             
             // Most Viewed Videos
             if (mostViewed.isNotEmpty) ...[
-              Text(
+              const Text(
                 'الفيديوهات الأكثر مشاهدة',
                 style: TextStyle(
                   fontSize: 18,
@@ -484,12 +486,12 @@ leading: Row(
                   color: Colors.white,
                 ),
               ),
-              SizedBox(height: 20),
+              const SizedBox(height: 20),
               SizedBox(
                 height: 220,
                 child: ListView.builder(
                   scrollDirection: Axis.horizontal,
-                  physics: BouncingScrollPhysics(),
+                  physics: const BouncingScrollPhysics(),
                   itemCount: mostViewed.length,
                   itemBuilder: (context, index) {
                     final video = mostViewed[index];
@@ -497,10 +499,10 @@ leading: Row(
                     
                     return Container(
                       width: 200,
-                      margin: EdgeInsets.only(right: 15),
+                      margin: const EdgeInsets.only(right: 15),
                       clipBehavior: Clip.antiAlias,
                       decoration: BoxDecoration(
-                        gradient: LinearGradient(
+                        gradient: const LinearGradient(
                           colors: [Color(0xFF1F2335), Color(0xFF131629)],
                           begin: Alignment.topLeft,
                           end: Alignment.bottomRight,
@@ -510,7 +512,7 @@ leading: Row(
                           BoxShadow(
                             color: Colors.black.withOpacity(0.2),
                             blurRadius: 10,
-                            offset: Offset(0, 5),
+                            offset: const Offset(0, 5),
                           ),
                         ],
                       ),
@@ -531,13 +533,13 @@ leading: Row(
                               children: [
                                 // تأثير تموجات عصرية
                                 CustomPaint(
-                                  size: Size(200, 120),
+                                  size: const Size(200, 120),
                                   painter: WavePainter(
                                     color: Colors.white.withOpacity(0.1),
                                     wavesCount: 3,
                                   ),
                                 ),
-                                Icon(
+                                const Icon(
                                   Icons.play_circle_fill_rounded,
                                   size: 50,
                                   color: Colors.white,
@@ -546,22 +548,22 @@ leading: Row(
                                   top: 10,
                                   right: 10,
                                   child: Container(
-                                    padding: EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
                                     decoration: BoxDecoration(
                                       color: Colors.black.withOpacity(0.6),
                                       borderRadius: BorderRadius.circular(30),
                                     ),
                                     child: Row(
                                       children: [
-                                        Icon(
+                                        const Icon(
                                           Icons.visibility,
                                           color: Colors.white,
                                           size: 16,
                                         ),
-                                        SizedBox(width: 5),
+                                        const SizedBox(width: 5),
                                         Text(
                                           '$views',
-                                          style: TextStyle(
+                                          style: const TextStyle(
                                             color: Colors.white,
                                             fontWeight: FontWeight.bold,
                                             fontSize: 12,
@@ -575,13 +577,13 @@ leading: Row(
                             ),
                           ),
                           Padding(
-                            padding: EdgeInsets.all(15),
+                            padding: const EdgeInsets.all(15),
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
                                 Text(
                                   video['title'] ?? 'بدون عنوان',
-                                  style: TextStyle(
+                                  style: const TextStyle(
                                     fontSize: 16,
                                     fontWeight: FontWeight.bold,
                                     color: Colors.white,
@@ -589,22 +591,22 @@ leading: Row(
                                   maxLines: 1,
                                   overflow: TextOverflow.ellipsis,
                                 ),
-                                SizedBox(height: 12),
+                                const SizedBox(height: 12),
                                 Row(
                                   children: [
                                     Container(
                                       width: 4,
                                       height: 4,
-                                      decoration: BoxDecoration(
+                                      decoration: const BoxDecoration(
                                         color: Colors.grey,
                                         shape: BoxShape.circle,
                                       ),
                                     ),
-                                    SizedBox(width: 8),
+                                    const SizedBox(width: 8),
                                     Expanded(
                                       child: Text(
                                         'القسم: ${video['categoryName'] ?? 'غير مصنف'}',
-                                        style: TextStyle(
+                                        style: const TextStyle(
                                           fontSize: 12,
                                           color: Colors.grey,
                                         ),
@@ -614,7 +616,7 @@ leading: Row(
                                     ),
                                   ],
                                 ),
-                                SizedBox(height: 8),
+                                const SizedBox(height: 8),
                                 LinearProgressIndicator(
                                   value: math.min(1.0, views / 1000),
                                   backgroundColor: Colors.grey.withOpacity(0.2),
@@ -630,12 +632,12 @@ leading: Row(
                   },
                 ),
               ),
-              SizedBox(height: 30),
+              const SizedBox(height: 30),
             ],
             
             // Recently Added Videos
             if (recentlyAdded.isNotEmpty) ...[
-              Text(
+              const Text(
                 'الفيديوهات المضافة حديثاً',
                 style: TextStyle(
                   fontSize: 18,
@@ -643,11 +645,11 @@ leading: Row(
                   color: Colors.white,
                 ),
               ),
-              SizedBox(height: 20),
+              const SizedBox(height: 20),
               GridView.builder(
                 shrinkWrap: true,
-                physics: NeverScrollableScrollPhysics(),
-                gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                physics: const NeverScrollableScrollPhysics(),
+                gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
                   crossAxisCount: 2,
                   crossAxisSpacing: 15,
                   mainAxisSpacing: 15,
@@ -659,13 +661,13 @@ leading: Row(
                   return Container(
                     clipBehavior: Clip.antiAlias,
                     decoration: BoxDecoration(
-                      color: Color(0xFF1F2335),
+                      color: const Color(0xFF1F2335),
                       borderRadius: BorderRadius.circular(20),
                       boxShadow: [
                         BoxShadow(
                           color: Colors.black.withOpacity(0.1),
                           blurRadius: 10,
-                          offset: Offset(0, 4),
+                          offset: const Offset(0, 4),
                         ),
                       ],
                     ),
@@ -702,7 +704,7 @@ leading: Row(
                           left: 0,
                           right: 0,
                           child: Container(
-                            padding: EdgeInsets.all(15),
+                            padding: const EdgeInsets.all(15),
                             decoration: BoxDecoration(
                               gradient: LinearGradient(
                                 colors: [
@@ -715,7 +717,7 @@ leading: Row(
                             ),
                             child: Text(
                               video['title'] ?? 'بدون عنوان',
-                              style: TextStyle(
+                              style: const TextStyle(
                                 fontSize: 14,
                                 fontWeight: FontWeight.bold,
                                 color: Colors.white,
@@ -729,12 +731,12 @@ leading: Row(
                           top: 10,
                           right: 10,
                           child: Container(
-                            padding: EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
                             decoration: BoxDecoration(
                               color: Colors.black.withOpacity(0.6),
                               borderRadius: BorderRadius.circular(30),
                             ),
-                            child: Row(
+                            child: const Row(
                               mainAxisSize: MainAxisSize.min,
                               children: [
                                 Icon(
@@ -773,27 +775,27 @@ leading: Row(
     
     return Container(
       decoration: BoxDecoration(
-        color: Color(0xFF161A30),
+        color: const Color(0xFF161A30),
         borderRadius: BorderRadius.circular(24),
         boxShadow: [
           BoxShadow(
             color: Colors.black.withOpacity(0.2),
             blurRadius: 15,
-            offset: Offset(0, 5),
+            offset: const Offset(0, 5),
           ),
         ],
       ),
       child: Padding(
-        padding: EdgeInsets.all(25),
+        padding: const EdgeInsets.all(25),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             _buildSectionTitle('إحصائيات الأقسام', Icons.category_rounded, gradients[1]),
-            SizedBox(height: 30),
+            const SizedBox(height: 30),
             
             // Most Popular Categories
             if (mostPopular.isNotEmpty) ...[
-              Text(
+              const Text(
                 'الأقسام الأكثر استخداماً',
                 style: TextStyle(
                   fontSize: 18,
@@ -801,12 +803,12 @@ leading: Row(
                   color: Colors.white,
                 ),
               ),
-              SizedBox(height: 20),
+              const SizedBox(height: 20),
               Container(
                 height: 300,
-                padding: EdgeInsets.all(20),
+                padding: const EdgeInsets.all(20),
                 decoration: BoxDecoration(
-                  gradient: LinearGradient(
+                  gradient: const LinearGradient(
                     colors: [Color(0xFF1F2335), Color(0xFF131629)],
                     begin: Alignment.topCenter,
                     end: Alignment.bottomCenter,
@@ -827,7 +829,7 @@ leading: Row(
                       enabled: true,
                       touchTooltipData: BarTouchTooltipData(
                         tooltipBgColor: Colors.white.withOpacity(0.8),
-                        tooltipPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                        tooltipPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                         tooltipMargin: 8,
                         getTooltipItem: (group, groupIndex, rod, rodIndex) {
                           if (groupIndex >= mostPopular.length) return null;
@@ -836,7 +838,7 @@ leading: Row(
                           final count = category['count'] ?? 0;
                           return BarTooltipItem(
                             '$categoryName: $count',
-                            TextStyle(
+                            const TextStyle(
                               color: Colors.black,
                               fontWeight: FontWeight.bold,
                             ),
@@ -851,14 +853,14 @@ leading: Row(
                           showTitles: true,
                           reservedSize: 60,
                           getTitlesWidget: (value, meta) {
-                            if (value.toInt() >= mostPopular.length) return Text('');
+                            if (value.toInt() >= mostPopular.length) return const Text('');
                             final category = mostPopular[value.toInt()];
                             final name = category['category']?['name'] ?? '';
                             return Padding(
                               padding: const EdgeInsets.only(top: 8.0),
                               child: Text(
                                 name,
-                                style: TextStyle(
+                                style: const TextStyle(
                                   color: Colors.white70,
                                   fontSize: 12,
                                   fontWeight: FontWeight.bold,
@@ -874,12 +876,12 @@ leading: Row(
                           showTitles: true,
                           reservedSize: 40,
                           getTitlesWidget: (value, meta) {
-                            if (value == 0) return Text('');
+                            if (value == 0) return const Text('');
                             return Padding(
                               padding: const EdgeInsets.only(right: 8.0),
                               child: Text(
                                 value.toInt().toString(),
-                                style: TextStyle(
+                                style: const TextStyle(
                                   color: Colors.white70,
                                   fontSize: 12,
                                 ),
@@ -888,8 +890,8 @@ leading: Row(
                           },
                         ),
                       ),
-                      topTitles: AxisTitles(sideTitles: SideTitles(showTitles: false)),
-                      rightTitles: AxisTitles(sideTitles: SideTitles(showTitles: false)),
+                      topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+                      rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
                     ),
                     gridData: FlGridData(
                       show: true,
@@ -911,12 +913,12 @@ leading: Row(
                         final count = category['count'] ?? 0;
                         
                         final colors = [
-                          Color(0xFFFF6B6B),
-                          Color(0xFF4ECDC4),
-                          Color(0xFFFFD166),
-                          Color(0xFF118AB2),
-                          Color(0xFF06D6A0),
-                          Color(0xFFEF476F),
+                          const Color(0xFFFF6B6B),
+                          const Color(0xFF4ECDC4),
+                          const Color(0xFFFFD166),
+                          const Color(0xFF118AB2),
+                          const Color(0xFF06D6A0),
+                          const Color(0xFFEF476F),
                         ];
                         
                         return BarChartGroupData(
@@ -949,12 +951,12 @@ leading: Row(
                   ),
                 ),
               ),
-              SizedBox(height: 30),
+              const SizedBox(height: 30),
             ],
             
             // Recently Updated Categories
             if (recentlyUpdated.isNotEmpty) ...[
-              Text(
+              const Text(
                 'الأقسام المحدثة مؤخراً',
                 style: TextStyle(
                   fontSize: 18,
@@ -962,10 +964,10 @@ leading: Row(
                   color: Colors.white,
                 ),
               ),
-              SizedBox(height: 20),
+              const SizedBox(height: 20),
               Container(
                 decoration: BoxDecoration(
-                  gradient: LinearGradient(
+                  gradient: const LinearGradient(
                     colors: [Color(0xFF1F2335), Color(0xFF131629)],
                     begin: Alignment.topCenter,
                     end: Alignment.bottomCenter,
@@ -978,16 +980,16 @@ leading: Row(
                 ),
                 child: ListView.builder(
                   shrinkWrap: true,
-                  physics: NeverScrollableScrollPhysics(),
+                  physics: const NeverScrollableScrollPhysics(),
                   itemCount: math.min(5, recentlyUpdated.length),
                   itemBuilder: (context, index) {
                     final category = recentlyUpdated[index];
                     final colors = [
-                      Color(0xFFFF6B6B),
-                      Color(0xFF4ECDC4),
-                      Color(0xFFFFD166),
-                      Color(0xFF118AB2),
-                      Color(0xFF06D6A0),
+                      const Color(0xFFFF6B6B),
+                      const Color(0xFF4ECDC4),
+                      const Color(0xFFFFD166),
+                      const Color(0xFF118AB2),
+                      const Color(0xFF06D6A0),
                     ];
                     
                     return Container(
@@ -997,7 +999,7 @@ leading: Row(
                         borderRadius: BorderRadius.circular(15),
                       ),
                       child: ListTile(
-                        contentPadding: EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+                        contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
                         leading: Container(
                           width: 50,
                           height: 50,
@@ -1022,7 +1024,7 @@ leading: Row(
                         ),
                         title: Text(
                           category['name'] ?? 'غير معروف',
-                          style: TextStyle(
+                          style: const TextStyle(
                             color: Colors.white,
                             fontWeight: FontWeight.bold,
                           ),
@@ -1065,7 +1067,7 @@ leading: Row(
     return Row(
       children: [
         Container(
-          padding: EdgeInsets.all(12),
+          padding: const EdgeInsets.all(12),
           decoration: BoxDecoration(
             gradient: LinearGradient(
               colors: gradient,
@@ -1077,16 +1079,16 @@ leading: Row(
               BoxShadow(
                 color: gradient[0].withOpacity(0.3),
                 blurRadius: 10,
-                offset: Offset(0, 5),
+                offset: const Offset(0, 5),
               ),
             ],
           ),
           child: Icon(icon, color: Colors.white, size: 24),
         ),
-        SizedBox(width: 15),
+        const SizedBox(width: 15),
         Text(
           title,
-          style: TextStyle(
+          style: const TextStyle(
             fontSize: 22,
             fontWeight: FontWeight.bold,
             color: Colors.white,
@@ -1104,20 +1106,20 @@ class _Badge extends StatelessWidget {
   final Color color;
   final int count;
 
-  _Badge(this.text, this.color, this.count);
+  const _Badge(this.text, this.color, this.count);
 
   @override
   Widget build(BuildContext context) {
     return AnimatedContainer(
-      duration: Duration(milliseconds: 250),
+      duration: const Duration(milliseconds: 250),
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(10),
         color: color,
       ),
-      padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
       child: Text(
         text,
-        style: TextStyle(
+        style: const TextStyle(
           color: Colors.white,
           fontSize: 12,
           fontWeight: FontWeight.bold,

@@ -376,63 +376,61 @@ class _ComplaintsScreenState extends State<ComplaintsScreen>
                     style: TextStyle(color: Colors.grey[500], fontSize: 12),
                   ),
 
-                  if (responses.isNotEmpty) ...[
-                    const Divider(color: Colors.grey, height: 24),
-                    const Text(
-                      'الردود:',
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontSize: 14,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    ...responses.map((response) {
-                      return Container(
-                        margin: const EdgeInsets.only(bottom: 8),
-                        padding: const EdgeInsets.all(8),
-                        decoration: BoxDecoration(
-                          color: const Color(0xFF2A2A2A),
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              response['text'] ?? '',
-                              style: const TextStyle(
-                                  color: Colors.white, fontSize: 14),
-                            ),
-                            const SizedBox(height: 4),
-                            Row(
-                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                              children: [
-                                Text(
-                                  'من: ${response['isAdmin'] ? 'الإدارة' : 'أنت'}',
-                                  style: TextStyle(
-                                    color: response['isAdmin']
-                                        ? Colors.red[300]
-                                        : Colors.blue[300],
-                                    fontSize: 12,
-                                  ),
-                                ),
-                                Text(
-                                  _formatDate(response['createdAt']),
-                                  style: TextStyle(
-                                      color: Colors.grey[500], fontSize: 11),
-                                ),
-                              ],
-                            ),
-                          ],
-                        ),
-                      );
-                    }).toList(),
-                  ],
+             if (responses.isNotEmpty) ...[
+  const Divider(color: Colors.grey, height: 24),
+  const Text(
+    'الردود:',
+    style: TextStyle(
+      color: Colors.white,
+      fontSize: 14,
+      fontWeight: FontWeight.bold,
+    ),
+  ),
+  const SizedBox(height: 8),
+  ...responses.map((response) {
+    final isAdmin = response['isAdmin'] ?? false; // هنا التأكد من عدم وجود null
+    return Container(
+      margin: const EdgeInsets.only(bottom: 8),
+      padding: const EdgeInsets.all(8),
+      decoration: BoxDecoration(
+        color: const Color(0xFF2A2A2A),
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            response['text'] ?? '',
+            style: const TextStyle(color: Colors.white, fontSize: 14),
+          ),
+          const SizedBox(height: 4),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                'من: ${isAdmin ? 'الإدارة' : 'أنت'}',
+                style: TextStyle(
+                  color: isAdmin ? Colors.red[300] : Colors.blue[300],
+                  fontSize: 12,
+                ),
+              ),
+              Text(
+                _formatDate(response['createdAt']),
+                style: TextStyle(color: Colors.grey[500], fontSize: 11),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }),
+],
 
                   // أضف زر للرد فقط إذا كان هناك رد من الإدارة وكانت الشكوى غير محلولة
                   if (status != 'resolved' &&
                       responses
-                          .any((response) => response['isAdmin'] == true)) ...[
+                          .any((response) => response['isAdmin'] ?? false)
+) ...[
                     const SizedBox(height: 12),
                     Center(
                       child: ElevatedButton.icon(

@@ -215,7 +215,9 @@ class _VideoManagementScreenState extends State<VideoManagementScreen> {
   File? _thumbnailFile;
   String? _videoFileName;
   String? _thumbnailFileName;
-
+// داخل كلاس _VideoManagementScreenState
+final TextEditingController _externalUrlController = TextEditingController();
+bool _isExternalUrl = false;
   @override
   void initState() {
     super.initState();
@@ -233,7 +235,7 @@ class _VideoManagementScreenState extends State<VideoManagementScreen> {
         AndroidInitializationSettings('@mipmap/ic_launcher');
 
     final DarwinInitializationSettings initializationSettingsIOS =
-        DarwinInitializationSettings(
+        const DarwinInitializationSettings(
       requestSoundPermission: false,
       requestBadgePermission: false,
       requestAlertPermission: false,
@@ -454,66 +456,101 @@ class _VideoManagementScreenState extends State<VideoManagementScreen> {
     };
   }
 
-  Future<void> _uploadVideo() async {
-    if (_titleController.text.isEmpty) {
-      _showErrorSnackbar('الرجاء إدخال عنوان الفيديو');
-      return;
-    }
-
-    if (_selectedCategoryId == null) {
-      _showErrorSnackbar('الرجاء اختيار قسم الفيديو');
-      return;
-    }
-
-    if (_videoFile == null) {
-      _showErrorSnackbar('الرجاء اختيار ملف الفيديو');
-      return;
-    }
-
-    if (_thumbnailFile == null) {
-      _showErrorSnackbar('الرجاء اختيار صورة مصغرة للفيديو');
-      return;
-    }
-
-    try {
-      // تحضير معرّف فريد للمهمة
-      final taskId = DateTime.now().millisecondsSinceEpoch.toString();
-
-      // نسخ الملفات إلى مجلد التطبيق لاستخدامها من الخدمة الخلفية
-      final Map<String, String> paths =
-          await _prepareFilesForBackgroundUpload();
-
-      // إنشاء كائن مهمة الرفع وإضافته إلى القائمة
-      setState(() {
-        uploadTasks[taskId] = UploadTask(
-          id: taskId,
-          title: _titleController.text,
-          progress: 0,
-          status: 'جاري التحضير للرفع...',
-        );
-      });
-
-      // بدء الخدمة الخلفية وإرسال معلومات الرفع
-      final service = FlutterBackgroundService();
-      await service.startService();
-
-      service.invoke('startUpload', {
-        'id': taskId,
-        'videoPath': paths['videoPath'],
-        'thumbnailPath': paths['thumbnailPath'],
-        'title': _titleController.text,
-        'categoryId': _selectedCategoryId,
-      });
-
-      // مسح النموذج
-      _clearForm();
-
-      // إظهار رسالة للمستخدم
-      _showSuccessSnackbar('بدأت عملية رفع الفيديو في الخلفية');
-    } catch (e) {
-      _showErrorSnackbar('حدث خطأ أثناء بدء عملية الرفع: $e');
-    }
+Future<void> _uploadVideo() async {
+  if (_titleController.text.isEmpty) {
+    _showErrorSnackbar('الرجاء إدخال عنوان الفيديو');
+    return;
   }
+
+  if (_selectedCategoryId == null) {
+    _showErrorSnackbar('الرجاء اختيار قسم الفيديو');
+    return;
+  }
+
+  if (!_isExternalUrl && _videoFile == null) {
+    _showErrorSnackbar('الرجاء اختيار ملف الفيديو');
+    return;
+  }
+
+  if (_isExternalUrl && _externalUrlController.text.isEmpty) {
+    _showErrorSnackbar('الرجاء إدخال رابط الفيديو الخارجي');
+    return;
+  }
+
+  if (_thumbnailFile == null) {
+    _showErrorSnackbar('الرجاء اختيار صورة مصغرة للفيديو');
+    return;
+  }
+
+  try {
+    final taskId = DateTime.now().millisecondsSinceEpoch.toString();
+
+    // إعداد بيانات الرفع
+    final Map<String, dynamic> uploadData = {
+      'id': taskId,
+      'title': _titleController.text,
+      'categoryId': _selectedCategoryId,
+      'thumbnailPath': (await _prepareThumbnailForUpload())!,
+      'isExternalUrl': _isExternalUrl,
+      if (_isExternalUrl) 'externalUrl': _externalUrlController.text,
+      if (!_isExternalUrl) 'videoPath': (await _prepareVideoForUpload())!,
+    };
+
+    // إنشاء كائن مهمة الرفع
+    setState(() {
+      uploadTasks[taskId] = UploadTask(
+        id: taskId,
+        title: _titleController.text,
+        progress: 0,
+        status: 'جاري التحضير للرفع...',
+      );
+    });
+
+    // بدء الخدمة الخلفية
+    final service = FlutterBackgroundService();
+    await service.startService();
+    service.invoke('startUpload', uploadData);
+
+    _clearForm();
+    _showSuccessSnackbar('بدأت عملية رفع الفيديو في الخلفية');
+  } catch (e) {
+    _showErrorSnackbar('حدث خطأ أثناء بدء عملية الرفع: $e');
+  }
+}
+
+// دالة مساعدة لإعداد الفيديو للرفع
+Future<String?> _prepareVideoForUpload() async {
+  if (_videoFile == null) return null;
+  
+  final appDir = await getApplicationDocumentsDirectory();
+  final uploadDir = Directory('${appDir.path}/uploads');
+  if (!await uploadDir.exists()) {
+    await uploadDir.create(recursive: true);
+  }
+
+  final videoTargetPath = 
+      '${uploadDir.path}/${DateTime.now().millisecondsSinceEpoch}_video${_videoFile!.path.split('.').last}';
+  await _videoFile!.copy(videoTargetPath);
+  
+  return videoTargetPath;
+}
+
+// دالة مساعدة لإعداد الصورة المصغرة للرفع
+Future<String?> _prepareThumbnailForUpload() async {
+  if (_thumbnailFile == null) return null;
+  
+  final appDir = await getApplicationDocumentsDirectory();
+  final uploadDir = Directory('${appDir.path}/uploads');
+  if (!await uploadDir.exists()) {
+    await uploadDir.create(recursive: true);
+  }
+
+  final thumbnailTargetPath = 
+      '${uploadDir.path}/${DateTime.now().millisecondsSinceEpoch}_thumbnail${_thumbnailFile!.path.split('.').last}';
+  await _thumbnailFile!.copy(thumbnailTargetPath);
+  
+  return thumbnailTargetPath;
+}
 
   Future<void> _deleteVideo(String videoId) async {
     try {
@@ -536,79 +573,81 @@ class _VideoManagementScreenState extends State<VideoManagementScreen> {
   }
 
   // وظيفة جديدة لتعديل الفيديو
-Future<void> _updateVideo(String videoId, String title, File? thumbnailFile) async {
-  try {
-    setState(() => isLoading = true);
-    final dio = Dio();
-    
-    // 1. التحقق من صحة المدخلات
-    if (videoId.isEmpty) throw Exception('معرّف الفيديو غير صالح');
-    if (title.isEmpty) throw Exception('العنوان لا يمكن أن يكون فارغًا');
+  Future<void> _updateVideo(
+      String videoId, String title, File? thumbnailFile) async {
+    try {
+      setState(() => isLoading = true);
+      final dio = Dio();
 
-    // 2. تسجيل بيانات التعديل للتحقق
-    debugPrint('=== بدء عملية تعديل الفيديو ===');
-    debugPrint('الرابط المستخدم: https://backend-q811.onrender.com/videos/videos/$videoId');
-    debugPrint('العنوان الجديد: $title');
-    debugPrint('مسار الصورة المصغرة: ${thumbnailFile?.path}');
+      // 1. التحقق من صحة المدخلات
+      if (videoId.isEmpty) throw Exception('معرّف الفيديو غير صالح');
+      if (title.isEmpty) throw Exception('العنوان لا يمكن أن يكون فارغًا');
 
-    // 3. إنشاء FormData
-    final formData = FormData.fromMap({
-      'title': title,
-      if (thumbnailFile != null) 
-        'thumbnail': await MultipartFile.fromFile(
-          thumbnailFile.path,
-          filename: 'thumbnail_${DateTime.now().millisecondsSinceEpoch}.jpg',
-          contentType: MediaType.parse('image/jpeg'),
-        ),
-    });
+      // 2. تسجيل بيانات التعديل للتحقق
+      debugPrint('=== بدء عملية تعديل الفيديو ===');
+      debugPrint(
+          'الرابط المستخدم: https://backend-q811.onrender.com/videos/videos/$videoId');
+      debugPrint('العنوان الجديد: $title');
+      debugPrint('مسار الصورة المصغرة: ${thumbnailFile?.path}');
 
-    // 4. إضافة المصادقة
-    final prefs = await SharedPreferences.getInstance();
-    final token = prefs.getString('token');
-    
-    final options = Options(
-      headers: {
-        if (token != null) 'Authorization': 'Bearer $token',
-        'Accept': 'application/json',
-      },
-    );
+      // 3. إنشاء FormData
+      final formData = FormData.fromMap({
+        'title': title,
+        if (thumbnailFile != null)
+          'thumbnail': await MultipartFile.fromFile(
+            thumbnailFile.path,
+            filename: 'thumbnail_${DateTime.now().millisecondsSinceEpoch}.jpg',
+            contentType: MediaType.parse('image/jpeg'),
+          ),
+      });
 
-    // 5. إرسال الطلب
-    debugPrint('إرسال طلب PUT...');
-    final response = await dio.put(
-      'https://backend-q811.onrender.com/videos/videos/$videoId', // تم تصحيح الرابط هنا
-      data: formData,
-      options: options,
-    );
+      // 4. إضافة المصادقة
+      final prefs = await SharedPreferences.getInstance();
+      final token = prefs.getString('token');
 
-    // 6. تحليل الاستجابة
-    debugPrint('حالة الاستجابة: ${response.statusCode}');
-    debugPrint('بيانات الاستجابة: ${response.data}');
+      final options = Options(
+        headers: {
+          if (token != null) 'Authorization': 'Bearer $token',
+          'Accept': 'application/json',
+        },
+      );
 
-    if (response.statusCode == 200) {
-      _showSuccessSnackbar('تم تحديث الفيديو بنجاح');
-      _fetchVideos(); // تحديث القائمة
-    } else {
-      throw Exception(response.data['message'] ?? 'فشل التحديث');
-    }
-  } catch (e, stackTrace) {
-    debugPrint('حدث خطأ: $e');
-    debugPrint('Stack Trace: $stackTrace');
-    
-    String errorMessage = 'حدث خطأ أثناء التعديل';
-    if (e is DioException) {
-      if (e.response?.statusCode == 404) {
-        errorMessage = 'لم يتم العثور على الفيديو (404)';
-      } else if (e.response?.data != null) {
-        errorMessage = e.response!.data['message'] ?? errorMessage;
+      // 5. إرسال الطلب
+      debugPrint('إرسال طلب PUT...');
+      final response = await dio.put(
+        'https://backend-q811.onrender.com/videos/videos/$videoId', // تم تصحيح الرابط هنا
+        data: formData,
+        options: options,
+      );
+
+      // 6. تحليل الاستجابة
+      debugPrint('حالة الاستجابة: ${response.statusCode}');
+      debugPrint('بيانات الاستجابة: ${response.data}');
+
+      if (response.statusCode == 200) {
+        _showSuccessSnackbar('تم تحديث الفيديو بنجاح');
+        _fetchVideos(); // تحديث القائمة
+      } else {
+        throw Exception(response.data['message'] ?? 'فشل التحديث');
       }
+    } catch (e, stackTrace) {
+      debugPrint('حدث خطأ: $e');
+      debugPrint('Stack Trace: $stackTrace');
+
+      String errorMessage = 'حدث خطأ أثناء التعديل';
+      if (e is DioException) {
+        if (e.response?.statusCode == 404) {
+          errorMessage = 'لم يتم العثور على الفيديو (404)';
+        } else if (e.response?.data != null) {
+          errorMessage = e.response!.data['message'] ?? errorMessage;
+        }
+      }
+
+      _showErrorSnackbar(errorMessage);
+    } finally {
+      setState(() => isLoading = false);
     }
-    
-    _showErrorSnackbar(errorMessage);
-  } finally {
-    setState(() => isLoading = false);
   }
-}
 
   void _clearForm() {
     _titleController.clear();
@@ -634,178 +673,196 @@ Future<void> _updateVideo(String videoId, String title, File? thumbnailFile) asy
   }
 
   // دالة لإظهار مربع حوار تعديل الفيديو
- void _showEditDialog(dynamic video) {
-  final editTitleController = TextEditingController(text: video['title']);
-  File? newThumbnail;
-  String? currentThumbnailUrl = video['thumbnail'];
+  void _showEditDialog(dynamic video) {
+    final editTitleController = TextEditingController(text: video['title']);
+    File? newThumbnail;
+    String? currentThumbnailUrl = video['thumbnail'];
 
-  showDialog(
-    context: context,
-    builder: (context) => StatefulBuilder(
-      builder: (context, setStateDialog) {
-        return AlertDialog(
-          backgroundColor: kCardColor,
-          title: Text(
-            'تعديل الفيديو',
-            style: TextStyle(color: kTextColor),
-            textAlign: TextAlign.center,
-          ),
-          content: Container(
-            width: double.maxFinite, // تحديد عرض ثابت للمحتوى
-            child: SingleChildScrollView(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  // حقل العنوان
-                  TextField(
-                    controller: editTitleController,
-                    style: TextStyle(color: kTextColor),
-                    decoration: InputDecoration(
-                      labelText: 'العنوان',
-                      labelStyle: TextStyle(color: kSecondaryTextColor),
-                      enabledBorder: UnderlineInputBorder(
-                        borderSide: BorderSide(color: kAccentColor),
-                      ),
-                      focusedBorder: UnderlineInputBorder(
-                        borderSide: BorderSide(color: kSecondaryColor),
+    showDialog(
+      context: context,
+      builder: (context) => StatefulBuilder(
+        builder: (context, setStateDialog) {
+          return AlertDialog(
+            backgroundColor: kCardColor,
+            title: const Text(
+              'تعديل الفيديو',
+              style: TextStyle(color: kTextColor),
+              textAlign: TextAlign.center,
+            ),
+            content: SizedBox(
+              width: double.maxFinite, // تحديد عرض ثابت للمحتوى
+              child: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    // حقل العنوان
+                    TextField(
+                      controller: editTitleController,
+                      style: const TextStyle(color: kTextColor),
+                      decoration: const InputDecoration(
+                        labelText: 'العنوان',
+                        labelStyle: TextStyle(color: kSecondaryTextColor),
+                        enabledBorder: UnderlineInputBorder(
+                          borderSide: BorderSide(color: kAccentColor),
+                        ),
+                        focusedBorder: UnderlineInputBorder(
+                          borderSide: BorderSide(color: kSecondaryColor),
+                        ),
                       ),
                     ),
-                  ),
-                  SizedBox(height: 20),
-                  
-                  // عرض الصورة المصغرة الحالية
-                  if (currentThumbnailUrl != null && currentThumbnailUrl.isNotEmpty)
-                    Column(
-                      children: [
-                        Text(
-                          'الصورة المصغرة الحالية:',
-                          style: TextStyle(color: kSecondaryTextColor),
-                        ),
-                        SizedBox(height: 8),
-                        Container(
-                          height: 120,
-                          width: double.infinity,
-                          decoration: BoxDecoration(
-                            color: Colors.grey[800],
-                            borderRadius: BorderRadius.circular(8),
+                    const SizedBox(height: 20),
+
+                    // عرض الصورة المصغرة الحالية
+                    if (currentThumbnailUrl != null &&
+                        currentThumbnailUrl.isNotEmpty)
+                      Column(
+                        children: [
+                          const Text(
+                            'الصورة المصغرة الحالية:',
+                            style: TextStyle(color: kSecondaryTextColor),
                           ),
-                          child: ClipRRect(
-                            borderRadius: BorderRadius.circular(8),
-                            child: Image.network(
-                              currentThumbnailUrl,
-                              height: 120,
-                              width: double.infinity,
-                              fit: BoxFit.cover,
-                              loadingBuilder: (context, child, loadingProgress) {
-                                if (loadingProgress == null) return child;
-                                return Center(
-                                  child: CircularProgressIndicator(
-                                    valueColor: AlwaysStoppedAnimation<Color>(kSecondaryColor),
-                                    value: loadingProgress.expectedTotalBytes != null
-                                        ? loadingProgress.cumulativeBytesLoaded / loadingProgress.expectedTotalBytes!
-                                        : null,
-                                  ),
-                                );
-                              },
-                              errorBuilder: (context, error, stackTrace) => Center(
-                                child: Icon(Icons.broken_image, color: kTextColor),
+                          const SizedBox(height: 8),
+                          Container(
+                            height: 120,
+                            width: double.infinity,
+                            decoration: BoxDecoration(
+                              color: Colors.grey[800],
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: ClipRRect(
+                              borderRadius: BorderRadius.circular(8),
+                              child: Image.network(
+                                currentThumbnailUrl,
+                                height: 120,
+                                width: double.infinity,
+                                fit: BoxFit.cover,
+                                loadingBuilder:
+                                    (context, child, loadingProgress) {
+                                  if (loadingProgress == null) return child;
+                                  return Center(
+                                    child: CircularProgressIndicator(
+                                      valueColor:
+                                          const AlwaysStoppedAnimation<Color>(
+                                              kSecondaryColor),
+                                      value:
+                                          loadingProgress.expectedTotalBytes !=
+                                                  null
+                                              ? loadingProgress
+                                                      .cumulativeBytesLoaded /
+                                                  loadingProgress
+                                                      .expectedTotalBytes!
+                                              : null,
+                                    ),
+                                  );
+                                },
+                                errorBuilder: (context, error, stackTrace) =>
+                                    const Center(
+                                  child: Icon(Icons.broken_image,
+                                      color: kTextColor),
+                                ),
                               ),
                             ),
                           ),
-                        ),
-                        SizedBox(height: 15),
-                      ],
-                    ),
-                  
-                  // عرض الصورة المصغرة الجديدة إذا تم اختيارها
-                  if (newThumbnail != null)
-                    Column(
-                      children: [
-                        Text(
-                          'الصورة المصغرة الجديدة:',
-                          style: TextStyle(color: kSecondaryTextColor),
-                        ),
-                        SizedBox(height: 8),
-                        Container(
-                          height: 120,
-                          width: double.infinity,
-                          decoration: BoxDecoration(
-                            color: Colors.grey[800],
-                            borderRadius: BorderRadius.circular(8),
+                          const SizedBox(height: 15),
+                        ],
+                      ),
+
+                    // عرض الصورة المصغرة الجديدة إذا تم اختيارها
+                    if (newThumbnail != null)
+                      Column(
+                        children: [
+                          const Text(
+                            'الصورة المصغرة الجديدة:',
+                            style: TextStyle(color: kSecondaryTextColor),
                           ),
-                          child: ClipRRect(
-                            borderRadius: BorderRadius.circular(8),
-                            child: Image.file(
-                              newThumbnail!,
-                              height: 120,
-                              width: double.infinity,
-                              fit: BoxFit.cover,
-                              errorBuilder: (context, error, stackTrace) => Center(
-                                child: Icon(Icons.broken_image, color: kTextColor),
+                          const SizedBox(height: 8),
+                          Container(
+                            height: 120,
+                            width: double.infinity,
+                            decoration: BoxDecoration(
+                              color: Colors.grey[800],
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: ClipRRect(
+                              borderRadius: BorderRadius.circular(8),
+                              child: Image.file(
+                                newThumbnail!,
+                                height: 120,
+                                width: double.infinity,
+                                fit: BoxFit.cover,
+                                errorBuilder: (context, error, stackTrace) =>
+                                    const Center(
+                                  child: Icon(Icons.broken_image,
+                                      color: kTextColor),
+                                ),
                               ),
                             ),
                           ),
+                          const SizedBox(height: 15),
+                        ],
+                      ),
+
+                    // زر اختيار صورة جديدة
+                    ElevatedButton(
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: kSecondaryColor,
+                        foregroundColor: kTextColor,
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 16, vertical: 10),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(8),
                         ),
-                        SizedBox(height: 15),
-                      ],
-                    ),
-                  
-                  // زر اختيار صورة جديدة
-                  ElevatedButton(
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: kSecondaryColor,
-                      foregroundColor: kTextColor,
-                      padding: EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      onPressed: () async {
+                        final pickedFile = await ImagePicker()
+                            .pickImage(source: ImageSource.gallery);
+                        if (pickedFile != null) {
+                          setStateDialog(() {
+                            newThumbnail = File(pickedFile.path);
+                          });
+                        }
+                      },
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Icon(Icons.image),
+                          const SizedBox(width: 8),
+                          Text(newThumbnail != null
+                              ? 'تغيير الصورة'
+                              : 'اختر صورة جديدة'),
+                        ],
                       ),
                     ),
-                    onPressed: () async {
-                      final pickedFile = await ImagePicker().pickImage(source: ImageSource.gallery);
-                      if (pickedFile != null) {
-                        setStateDialog(() {
-                          newThumbnail = File(pickedFile.path);
-                        });
-                      }
-                    },
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Icon(Icons.image),
-                        SizedBox(width: 8),
-                        Text(newThumbnail != null ? 'تغيير الصورة' : 'اختر صورة جديدة'),
-                      ],
-                    ),
-                  ),
-                ],
+                  ],
+                ),
               ),
             ),
-          ),
-          actions: [
-            TextButton(
-              style: TextButton.styleFrom(
-                foregroundColor: kSecondaryTextColor,
+            actions: [
+              TextButton(
+                style: TextButton.styleFrom(
+                  foregroundColor: kSecondaryTextColor,
+                ),
+                onPressed: () => Navigator.pop(context),
+                child: const Text('إلغاء'),
               ),
-              onPressed: () => Navigator.pop(context),
-              child: Text('إلغاء'),
-            ),
-            ElevatedButton(
-              style: ElevatedButton.styleFrom(
-                backgroundColor: kSecondaryColor,
-                foregroundColor: kTextColor,
+              ElevatedButton(
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: kSecondaryColor,
+                  foregroundColor: kTextColor,
+                ),
+                onPressed: () {
+                  Navigator.pop(context);
+                  _updateVideo(
+                      video['_id'], editTitleController.text, newThumbnail);
+                },
+                child: const Text('حفظ التغييرات'),
               ),
-              onPressed: () {
-                Navigator.pop(context);
-                _updateVideo(video['_id'], editTitleController.text, newThumbnail);
-              },
-              child: Text('حفظ التغييرات'),
-            ),
-          ],
-        );
-      },
-    ),
-  );
-}
+            ],
+          );
+        },
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -814,13 +871,13 @@ Future<void> _updateVideo(String videoId, String title, File? thumbnailFile) asy
       appBar: AppBar(
         backgroundColor: Colors.black,
         title: !isSearching
-            ? Text('إدارة الفيديوهات',
+            ? const Text('إدارة الفيديوهات',
                 style:
                     TextStyle(color: kTextColor, fontWeight: FontWeight.bold))
             : TextField(
                 controller: _searchController,
-                style: TextStyle(color: kTextColor),
-                decoration: InputDecoration(
+                style: const TextStyle(color: kTextColor),
+                decoration: const InputDecoration(
                   hintText: 'ابحث عن فيديو...',
                   hintStyle: TextStyle(color: kSecondaryTextColor),
                   border: InputBorder.none,
@@ -845,7 +902,7 @@ Future<void> _updateVideo(String videoId, String title, File? thumbnailFile) asy
             },
           ),
           IconButton(
-            icon: Icon(Icons.refresh, color: kSecondaryColor),
+            icon: const Icon(Icons.refresh, color: kSecondaryColor),
             onPressed: () {
               _fetchVideos();
               _fetchCategories();
@@ -860,7 +917,7 @@ Future<void> _updateVideo(String videoId, String title, File? thumbnailFile) asy
       body: Stack(
         children: [
           if (isLoading)
-            Center(
+            const Center(
               child: CircularProgressIndicator(
                 valueColor: AlwaysStoppedAnimation<Color>(kSecondaryColor),
               ),
@@ -871,7 +928,7 @@ Future<void> _updateVideo(String videoId, String title, File? thumbnailFile) asy
                 // عرض مهام الرفع الحالية
                 if (uploadTasks.isNotEmpty)
                   Container(
-                    decoration: BoxDecoration(
+                    decoration: const BoxDecoration(
                       color: kCardColor,
                       boxShadow: [
                         BoxShadow(
@@ -889,16 +946,17 @@ Future<void> _updateVideo(String videoId, String title, File? thumbnailFile) asy
                         final task = uploadTasks.values.elementAt(index);
                         if (task.isCompleted && !task.hasError) {
                           return Container(
-                            margin: EdgeInsets.only(bottom: 8),
-                            padding: EdgeInsets.all(12),
+                            margin: const EdgeInsets.only(bottom: 8),
+                            padding: const EdgeInsets.all(12),
                             decoration: BoxDecoration(
                               color: Colors.green[900],
                               borderRadius: BorderRadius.circular(8),
                             ),
                             child: Row(
                               children: [
-                                Icon(Icons.check_circle, color: Colors.white),
-                                SizedBox(width: 12),
+                                const Icon(Icons.check_circle,
+                                    color: Colors.white),
+                                const SizedBox(width: 12),
                                 Expanded(
                                   child: Column(
                                     crossAxisAlignment:
@@ -906,22 +964,23 @@ Future<void> _updateVideo(String videoId, String title, File? thumbnailFile) asy
                                     children: [
                                       Text(
                                         task.title,
-                                        style: TextStyle(
+                                        style: const TextStyle(
                                           color: kTextColor,
                                           fontWeight: FontWeight.bold,
                                         ),
                                       ),
-                                      SizedBox(height: 4),
+                                      const SizedBox(height: 4),
                                       Text(
                                         task.status,
-                                        style: TextStyle(
+                                        style: const TextStyle(
                                             color: kSecondaryTextColor),
                                       ),
                                     ],
                                   ),
                                 ),
                                 IconButton(
-                                  icon: Icon(Icons.close, color: kTextColor),
+                                  icon: const Icon(Icons.close,
+                                      color: kTextColor),
                                   onPressed: () {
                                     setState(() {
                                       uploadTasks.remove(task.id);
@@ -933,16 +992,16 @@ Future<void> _updateVideo(String videoId, String title, File? thumbnailFile) asy
                           );
                         } else if (task.hasError) {
                           return Container(
-                            margin: EdgeInsets.only(bottom: 8),
-                            padding: EdgeInsets.all(12),
+                            margin: const EdgeInsets.only(bottom: 8),
+                            padding: const EdgeInsets.all(12),
                             decoration: BoxDecoration(
                               color: Colors.red[900],
                               borderRadius: BorderRadius.circular(8),
                             ),
                             child: Row(
                               children: [
-                                Icon(Icons.error, color: Colors.white),
-                                SizedBox(width: 12),
+                                const Icon(Icons.error, color: Colors.white),
+                                const SizedBox(width: 12),
                                 Expanded(
                                   child: Column(
                                     crossAxisAlignment:
@@ -950,22 +1009,23 @@ Future<void> _updateVideo(String videoId, String title, File? thumbnailFile) asy
                                     children: [
                                       Text(
                                         task.title,
-                                        style: TextStyle(
+                                        style: const TextStyle(
                                           color: kTextColor,
                                           fontWeight: FontWeight.bold,
                                         ),
                                       ),
-                                      SizedBox(height: 4),
+                                      const SizedBox(height: 4),
                                       Text(
                                         task.status,
-                                        style: TextStyle(
+                                        style: const TextStyle(
                                             color: kSecondaryTextColor),
                                       ),
                                     ],
                                   ),
                                 ),
                                 IconButton(
-                                  icon: Icon(Icons.close, color: kTextColor),
+                                  icon: const Icon(Icons.close,
+                                      color: kTextColor),
                                   onPressed: () {
                                     setState(() {
                                       uploadTasks.remove(task.id);
@@ -977,8 +1037,8 @@ Future<void> _updateVideo(String videoId, String title, File? thumbnailFile) asy
                           );
                         } else {
                           return Container(
-                            margin: EdgeInsets.only(bottom: 8),
-                            padding: EdgeInsets.all(12),
+                            margin: const EdgeInsets.only(bottom: 8),
+                            padding: const EdgeInsets.all(12),
                             decoration: BoxDecoration(
                               color: kCardColor.withOpacity(0.8),
                               borderRadius: BorderRadius.circular(8),
@@ -990,24 +1050,26 @@ Future<void> _updateVideo(String videoId, String title, File? thumbnailFile) asy
                               children: [
                                 Text(
                                   task.title,
-                                  style: TextStyle(
+                                  style: const TextStyle(
                                     color: kTextColor,
                                     fontWeight: FontWeight.bold,
                                   ),
                                 ),
-                                SizedBox(height: 4),
+                                const SizedBox(height: 4),
                                 Text(
                                   task.status,
-                                  style: TextStyle(color: kSecondaryTextColor),
+                                  style: const TextStyle(
+                                      color: kSecondaryTextColor),
                                 ),
-                                SizedBox(height: 8),
+                                const SizedBox(height: 8),
                                 ClipRRect(
                                   borderRadius: BorderRadius.circular(4),
                                   child: LinearProgressIndicator(
                                     value: task.progress,
                                     backgroundColor: Colors.grey[800],
-                                    valueColor: AlwaysStoppedAnimation<Color>(
-                                        kSecondaryColor),
+                                    valueColor:
+                                        const AlwaysStoppedAnimation<Color>(
+                                            kSecondaryColor),
                                     minHeight: 6,
                                   ),
                                 ),
@@ -1033,12 +1095,12 @@ Future<void> _updateVideo(String videoId, String title, File? thumbnailFile) asy
                                 size: 60,
                                 color: kSecondaryColor.withOpacity(0.6),
                               ),
-                              SizedBox(height: 16),
+                              const SizedBox(height: 16),
                               Text(
                                 isSearching
                                     ? 'لا توجد نتائج لبحثك'
                                     : 'لا توجد فيديوهات',
-                                style: TextStyle(
+                                style: const TextStyle(
                                   color: kTextColor,
                                   fontSize: 18,
                                 ),
@@ -1052,7 +1114,7 @@ Future<void> _updateVideo(String videoId, String title, File? thumbnailFile) asy
                                       isSearching = false;
                                     });
                                   },
-                                  child: Text(
+                                  child: const Text(
                                     'العودة إلى جميع الفيديوهات',
                                     style: TextStyle(
                                       color: kSecondaryColor,
@@ -1064,9 +1126,9 @@ Future<void> _updateVideo(String videoId, String title, File? thumbnailFile) asy
                           ),
                         )
                       : GridView.builder(
-                          padding: EdgeInsets.all(12),
+                          padding: const EdgeInsets.all(12),
                           gridDelegate:
-                              SliverGridDelegateWithFixedCrossAxisCount(
+                              const SliverGridDelegateWithFixedCrossAxisCount(
                             crossAxisCount: 2,
                             crossAxisSpacing: 12,
                             mainAxisSpacing: 12,
@@ -1079,7 +1141,7 @@ Future<void> _updateVideo(String videoId, String title, File? thumbnailFile) asy
                               decoration: BoxDecoration(
                                 color: kCardColor,
                                 borderRadius: BorderRadius.circular(12),
-                                boxShadow: [
+                                boxShadow: const [
                                   BoxShadow(
                                     color: Colors.black26,
                                     blurRadius: 6,
@@ -1094,7 +1156,7 @@ Future<void> _updateVideo(String videoId, String title, File? thumbnailFile) asy
                                   Stack(
                                     children: [
                                       ClipRRect(
-                                        borderRadius: BorderRadius.only(
+                                        borderRadius: const BorderRadius.only(
                                           topLeft: Radius.circular(12),
                                           topRight: Radius.circular(12),
                                         ),
@@ -1108,7 +1170,8 @@ Future<void> _updateVideo(String videoId, String title, File? thumbnailFile) asy
                                                   Container(
                                             height: 120,
                                             color: Colors.grey[800],
-                                            child: Icon(Icons.broken_image,
+                                            child: const Icon(
+                                                Icons.broken_image,
                                                 color: kTextColor),
                                           ),
                                         ),
@@ -1117,7 +1180,7 @@ Future<void> _updateVideo(String videoId, String title, File? thumbnailFile) asy
                                         top: 5,
                                         right: 5,
                                         child: Container(
-                                          padding: EdgeInsets.symmetric(
+                                          padding: const EdgeInsets.symmetric(
                                             horizontal: 6,
                                             vertical: 3,
                                           ),
@@ -1129,15 +1192,15 @@ Future<void> _updateVideo(String videoId, String title, File? thumbnailFile) asy
                                           ),
                                           child: Row(
                                             children: [
-                                              Icon(
+                                              const Icon(
                                                 Icons.visibility,
                                                 color: kTextColor,
                                                 size: 14,
                                               ),
-                                              SizedBox(width: 4),
+                                              const SizedBox(width: 4),
                                               Text(
                                                 '${video['views'] ?? 0}',
-                                                style: TextStyle(
+                                                style: const TextStyle(
                                                   color: kTextColor,
                                                   fontSize: 12,
                                                 ),
@@ -1150,14 +1213,14 @@ Future<void> _updateVideo(String videoId, String title, File? thumbnailFile) asy
                                   ),
                                   // معلومات الفيديو
                                   Padding(
-                                    padding: EdgeInsets.all(10),
+                                    padding: const EdgeInsets.all(10),
                                     child: Column(
                                       crossAxisAlignment:
                                           CrossAxisAlignment.start,
                                       children: [
                                         Text(
                                           video['title'] ?? 'بلا عنوان',
-                                          style: TextStyle(
+                                          style: const TextStyle(
                                             color: kTextColor,
                                             fontWeight: FontWeight.bold,
                                             fontSize: 14,
@@ -1165,10 +1228,10 @@ Future<void> _updateVideo(String videoId, String title, File? thumbnailFile) asy
                                           maxLines: 2,
                                           overflow: TextOverflow.ellipsis,
                                         ),
-                                        SizedBox(height: 6),
+                                        const SizedBox(height: 6),
                                         if (video['category'] != null)
                                           Container(
-                                            padding: EdgeInsets.symmetric(
+                                            padding: const EdgeInsets.symmetric(
                                               horizontal: 6,
                                               vertical: 2,
                                             ),
@@ -1181,7 +1244,7 @@ Future<void> _updateVideo(String videoId, String title, File? thumbnailFile) asy
                                             child: Text(
                                               video['category']?['name'] ??
                                                   'لا يوجد قسم',
-                                              style: TextStyle(
+                                              style: const TextStyle(
                                                 color: kSecondaryColor,
                                                 fontSize: 12,
                                               ),
@@ -1189,14 +1252,14 @@ Future<void> _updateVideo(String videoId, String title, File? thumbnailFile) asy
                                               overflow: TextOverflow.ellipsis,
                                             ),
                                           ),
-                                        SizedBox(height: 8),
+                                        const SizedBox(height: 8),
                                         Row(
                                           mainAxisAlignment:
                                               MainAxisAlignment.spaceEvenly,
                                           children: [
                                             // زر التعديل
                                             IconButton(
-                                              icon: Icon(
+                                              icon: const Icon(
                                                 Icons.edit,
                                                 color: Colors.blue,
                                                 size: 20,
@@ -1204,12 +1267,13 @@ Future<void> _updateVideo(String videoId, String title, File? thumbnailFile) asy
                                               onPressed: () =>
                                                   _showEditDialog(video),
                                               padding: EdgeInsets.zero,
-                                              constraints: BoxConstraints(),
+                                              constraints:
+                                                  const BoxConstraints(),
                                               tooltip: 'تعديل',
                                             ),
                                             // زر الحذف
                                             IconButton(
-                                              icon: Icon(
+                                              icon: const Icon(
                                                 Icons.delete,
                                                 color: Colors.red,
                                                 size: 20,
@@ -1218,7 +1282,8 @@ Future<void> _updateVideo(String videoId, String title, File? thumbnailFile) asy
                                                   _showDeleteConfirmation(
                                                       video),
                                               padding: EdgeInsets.zero,
-                                              constraints: BoxConstraints(),
+                                              constraints:
+                                                  const BoxConstraints(),
                                               tooltip: 'حذف',
                                             ),
                                           ],
@@ -1239,7 +1304,7 @@ Future<void> _updateVideo(String videoId, String title, File? thumbnailFile) asy
       floatingActionButton: FloatingActionButton(
         backgroundColor: kSecondaryColor,
         onPressed: () => _showAddDialog(),
-        child: Icon(Icons.add, color: kTextColor),
+        child: const Icon(Icons.add, color: kTextColor),
       ),
     );
   }
@@ -1250,7 +1315,7 @@ Future<void> _updateVideo(String videoId, String title, File? thumbnailFile) asy
       context: context,
       builder: (context) => AlertDialog(
         backgroundColor: kCardColor,
-        title: Text(
+        title: const Text(
           'تأكيد الحذف',
           style: TextStyle(color: kTextColor),
           textAlign: TextAlign.center,
@@ -1258,28 +1323,28 @@ Future<void> _updateVideo(String videoId, String title, File? thumbnailFile) asy
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(
+            const Icon(
               Icons.warning_amber_rounded,
               color: Colors.amber,
               size: 48,
             ),
-            SizedBox(height: 16),
-            Text(
+            const SizedBox(height: 16),
+            const Text(
               'هل أنت متأكد من رغبتك في حذف الفيديو:',
               style: TextStyle(color: kSecondaryTextColor),
               textAlign: TextAlign.center,
             ),
-            SizedBox(height: 8),
+            const SizedBox(height: 8),
             Text(
               '"${video['title']}"',
-              style: TextStyle(
+              style: const TextStyle(
                 color: kTextColor,
                 fontWeight: FontWeight.bold,
               ),
               textAlign: TextAlign.center,
             ),
-            SizedBox(height: 8),
-            Text(
+            const SizedBox(height: 8),
+            const Text(
               'لا يمكن التراجع عن هذا الإجراء.',
               style: TextStyle(
                 color: kSecondaryColor,
@@ -1295,7 +1360,7 @@ Future<void> _updateVideo(String videoId, String title, File? thumbnailFile) asy
               foregroundColor: kSecondaryTextColor,
             ),
             onPressed: () => Navigator.pop(context),
-            child: Text('إلغاء'),
+            child: const Text('إلغاء'),
           ),
           ElevatedButton(
             style: ElevatedButton.styleFrom(
@@ -1306,7 +1371,7 @@ Future<void> _updateVideo(String videoId, String title, File? thumbnailFile) asy
               Navigator.pop(context);
               _deleteVideo(video['_id']);
             },
-            child: Text('حذف'),
+            child: const Text('حذف'),
           ),
         ],
       ),
@@ -1322,7 +1387,7 @@ Future<void> _updateVideo(String videoId, String title, File? thumbnailFile) asy
         builder: (context, setStateDialog) {
           return AlertDialog(
             backgroundColor: kCardColor,
-            title: Text(
+            title: const Text(
               'إضافة فيديو جديد',
               style: TextStyle(color: kTextColor),
               textAlign: TextAlign.center,
@@ -1334,8 +1399,8 @@ Future<void> _updateVideo(String videoId, String title, File? thumbnailFile) asy
                   // حقل العنوان
                   TextField(
                     controller: _titleController,
-                    style: TextStyle(color: kTextColor),
-                    decoration: InputDecoration(
+                    style: const TextStyle(color: kTextColor),
+                    decoration: const InputDecoration(
                       labelText: 'العنوان',
                       labelStyle: TextStyle(color: kSecondaryTextColor),
                       enabledBorder: UnderlineInputBorder(
@@ -1346,19 +1411,52 @@ Future<void> _updateVideo(String videoId, String title, File? thumbnailFile) asy
                       ),
                     ),
                   ),
-                  SizedBox(height: 20),
+                    Row(
+                  children: [
+                    Checkbox(
+                      value: _isExternalUrl,
+                      onChanged: (value) {
+                        setStateDialog(() {
+                          _isExternalUrl = value!;
+                          if (_isExternalUrl) {
+                            _videoFile = null;
+                          }
+                        });
+                      },
+                      activeColor: kSecondaryColor,
+                    ),
+                    const Text('رابط خارجي', style: TextStyle(color: kTextColor)),
+                  ],
+                ),
+
+                if (_isExternalUrl)
+                  TextField(
+                    controller: _externalUrlController,
+                    style: const TextStyle(color: kTextColor),
+                    decoration: const InputDecoration(
+                      labelText: 'رابط الفيديو الخارجي',
+                      labelStyle: TextStyle(color: kSecondaryTextColor),
+                      enabledBorder: UnderlineInputBorder(
+                        borderSide: BorderSide(color: kAccentColor),
+                      ),
+                      focusedBorder: UnderlineInputBorder(
+                        borderSide: BorderSide(color: kSecondaryColor),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 20),
 
                   // اختيار القسم
                   Container(
-                    decoration: BoxDecoration(
+                    decoration: const BoxDecoration(
                       border: Border(
                         bottom: BorderSide(color: kAccentColor),
                       ),
                     ),
                     child: DropdownButtonFormField<String>(
                       dropdownColor: kCardColor,
-                      style: TextStyle(color: kTextColor),
-                      decoration: InputDecoration(
+                      style: const TextStyle(color: kTextColor),
+                      decoration: const InputDecoration(
                         labelText: 'القسم',
                         labelStyle: TextStyle(color: kSecondaryTextColor),
                         enabledBorder: InputBorder.none,
@@ -1369,36 +1467,36 @@ Future<void> _updateVideo(String videoId, String title, File? thumbnailFile) asy
                           value: category['_id'] as String,
                           child: Text(
                             category['name'] as String,
-                            style: TextStyle(color: kTextColor),
+                            style: const TextStyle(color: kTextColor),
                           ),
                         );
                       }).toList(),
                       onChanged: (value) =>
                           setStateDialog(() => _selectedCategoryId = value),
-                      icon: Icon(Icons.arrow_drop_down, color: kSecondaryColor),
+                      icon: const Icon(Icons.arrow_drop_down,
+                          color: kSecondaryColor),
                     ),
                   ),
-                  SizedBox(height: 25),
+                  const SizedBox(height: 25),
 
                   // اختيار ملف الفيديو
+                  if (!_isExternalUrl) ...[
                   if (_videoFile != null)
                     Container(
-                      padding: EdgeInsets.all(10),
+                      padding: const EdgeInsets.all(10),
                       decoration: BoxDecoration(
                         color: kPrimaryColor.withOpacity(0.3),
                         borderRadius: BorderRadius.circular(8),
-                        border:
-                            Border.all(color: kAccentColor.withOpacity(0.5)),
+                        border: Border.all(color: kAccentColor.withOpacity(0.5)),
                       ),
                       child: Row(
                         children: [
-                          Icon(Icons.check_circle,
-                              color: Colors.green, size: 20),
-                          SizedBox(width: 8),
+                          const Icon(Icons.check_circle, color: Colors.green, size: 20),
+                          const SizedBox(width: 8),
                           Expanded(
                             child: Text(
                               'تم اختيار: ${_videoFile!.path.split('/').last}',
-                              style: TextStyle(
+                              style: const TextStyle(
                                 color: kSecondaryTextColor,
                                 fontSize: 12,
                               ),
@@ -1409,15 +1507,15 @@ Future<void> _updateVideo(String videoId, String title, File? thumbnailFile) asy
                         ],
                       ),
                     ),
-                  SizedBox(height: 10),
+                  const SizedBox(height: 10),
                   ElevatedButton(
                     style: ElevatedButton.styleFrom(
                       backgroundColor: _videoFile != null
                           ? Colors.green.withOpacity(0.7)
                           : kSecondaryColor,
                       foregroundColor: kTextColor,
-                      padding:
-                          EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 16, vertical: 10),
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(8),
                       ),
@@ -1429,54 +1527,55 @@ Future<void> _updateVideo(String videoId, String title, File? thumbnailFile) asy
                     child: Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        Icon(_videoFile != null
-                            ? Icons.check
-                            : Icons.video_file),
-                        SizedBox(width: 8),
+                        Icon(_videoFile != null ? Icons.check : Icons.video_file),
+                        const SizedBox(width: 8),
                         Text(_videoFile != null
                             ? 'تغيير ملف الفيديو'
                             : 'اختر ملف الفيديو'),
                       ],
                     ),
                   ),
-                  SizedBox(height: 20),
+                  const SizedBox(height: 20),
+                ],
 
                   // اختيار الصورة المصغرة
-                // جزء من دالة _showAddDialog يتعلق بعرض الصورة المصغرة
-if (_thumbnailFile != null)
-  Column(
-    children: [
-      Container(
-        height: 120,
-        width: double.infinity,
-        decoration: BoxDecoration(
-          color: Colors.grey[800],
-          borderRadius: BorderRadius.circular(8),
-        ),
-        child: ClipRRect(
-          borderRadius: BorderRadius.circular(8),
-          child: Image.file(
-            _thumbnailFile!,
-            height: 120,
-            width: double.infinity,
-            fit: BoxFit.cover,
-            errorBuilder: (context, error, stackTrace) => Center(
-              child: Icon(Icons.broken_image, color: kTextColor),
-            ),
-          ),
-        ),
-      ),
-      SizedBox(height: 10),
-    ],
-  ),
+                  // جزء من دالة _showAddDialog يتعلق بعرض الصورة المصغرة
+                  if (_thumbnailFile != null)
+                    Column(
+                      children: [
+                        Container(
+                          height: 120,
+                          width: double.infinity,
+                          decoration: BoxDecoration(
+                            color: Colors.grey[800],
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: ClipRRect(
+                            borderRadius: BorderRadius.circular(8),
+                            child: Image.file(
+                              _thumbnailFile!,
+                              height: 120,
+                              width: double.infinity,
+                              fit: BoxFit.cover,
+                              errorBuilder: (context, error, stackTrace) =>
+                                  const Center(
+                                child:
+                                    Icon(Icons.broken_image, color: kTextColor),
+                              ),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 10),
+                      ],
+                    ),
                   ElevatedButton(
                     style: ElevatedButton.styleFrom(
                       backgroundColor: _thumbnailFile != null
                           ? Colors.green.withOpacity(0.7)
                           : kSecondaryColor,
                       foregroundColor: kTextColor,
-                      padding:
-                          EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 16, vertical: 10),
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(8),
                       ),
@@ -1490,7 +1589,7 @@ if (_thumbnailFile != null)
                       children: [
                         Icon(
                             _thumbnailFile != null ? Icons.check : Icons.image),
-                        SizedBox(width: 8),
+                        const SizedBox(width: 8),
                         Text(_thumbnailFile != null
                             ? 'تغيير الصورة المصغرة'
                             : 'اختر الصورة المصغرة'),
@@ -1506,7 +1605,7 @@ if (_thumbnailFile != null)
                   foregroundColor: kSecondaryTextColor,
                 ),
                 onPressed: () => Navigator.pop(context),
-                child: Text('إلغاء'),
+                child: const Text('إلغاء'),
               ),
               ElevatedButton(
                 style: ElevatedButton.styleFrom(
@@ -1517,7 +1616,7 @@ if (_thumbnailFile != null)
                   Navigator.pop(context);
                   await _uploadVideo();
                 },
-                child: Text('رفع'),
+                child: const Text('رفع'),
               ),
             ],
           );
