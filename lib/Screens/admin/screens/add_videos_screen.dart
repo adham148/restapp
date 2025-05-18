@@ -92,45 +92,71 @@ void onStart(ServiceInstance service) async {
     service.stopSelf();
   });
 
-  // الاستماع لأوامر بدء رفع فيديو
   service.on('startUpload').listen((eventData) async {
-    final Map<String, dynamic> data = Map<String, dynamic>.from(eventData!);
+    final data = Map<String, dynamic>.from(eventData!);
 
-    // تحديث حالة الإشعار
-    if (service is AndroidServiceInstance) {
-      service.setForegroundNotificationInfo(
-        title: 'جاري رفع الفيديو',
-        content: 'يتم التحضير لرفع الفيديو...',
-      );
+    if (data.containsKey('externalUrl')) {
+      service.invoke('uploadError', {
+        'error': 'لا يمكن رفع روابط خارجية في الخلفية',
+        'id': data['id'],
+      });
+      return;
     }
+
+    // تم حذف الاستدعاء غير الصحيح لـ dio.post هنا لأن الكود الصحيح موجود لاحقًا في الدالة.
 
     try {
       final dio = Dio();
-      final videoPath = data['videoPath'];
-      final thumbnailPath = data['thumbnailPath'];
-      final title = data['title'];
-      final categoryId = data['categoryId'];
+      final title = data['title'] as String;
+      final categoryId = data['categoryId'] as String;
+      final thumbnailPath = data['thumbnailPath'] as String;
 
-      // إنشاء ملف FormData
-      final formData = FormData.fromMap({
-        'title': title,
-        'category': categoryId,
-        'video': await MultipartFile.fromFile(
-          videoPath,
-          filename: File(videoPath).path.split('/').last,
-          contentType:
-              MediaType.parse(lookupMimeType(videoPath) ?? 'video/mp4'),
-        ),
-        'thumbnail': await MultipartFile.fromFile(
-          thumbnailPath,
-          filename: File(thumbnailPath).path.split('/').last,
-          contentType:
-              MediaType.parse(lookupMimeType(thumbnailPath) ?? 'image/jpeg'),
-        ),
-      });
+      FormData formData;
 
-      // استدعاء API لرفع الفيديو
-      await dio.post(
+      if (data['externalUrl'] != null &&
+          (data['externalUrl'] as String).isNotEmpty) {
+        final externalUrl = data['externalUrl'] as String?;
+        if (externalUrl == null || externalUrl.isEmpty) {
+          throw Exception('رابط الفيديو الخارجي مطلوب');
+        }
+
+        formData = FormData.fromMap({
+          'title': title,
+          'category': categoryId,
+          'externalUrl': externalUrl,
+          'thumbnail': await MultipartFile.fromFile(
+            thumbnailPath,
+            filename: File(thumbnailPath).path.split('/').last,
+            contentType:
+                MediaType.parse(lookupMimeType(thumbnailPath) ?? 'image/jpeg'),
+          ),
+        });
+      } else {
+        final videoPath = data['videoPath'] as String?;
+        if (videoPath == null || videoPath.isEmpty) {
+          throw Exception('ملف الفيديو مطلوب');
+        }
+
+        formData = FormData.fromMap({
+          'title': title,
+          'category': categoryId,
+          'video': await MultipartFile.fromFile(
+            videoPath,
+            filename: File(videoPath).path.split('/').last,
+            contentType:
+                MediaType.parse(lookupMimeType(videoPath) ?? 'video/mp4'),
+          ),
+          'thumbnail': await MultipartFile.fromFile(
+            thumbnailPath,
+            filename: File(thumbnailPath).path.split('/').last,
+            contentType:
+                MediaType.parse(lookupMimeType(thumbnailPath) ?? 'image/jpeg'),
+          ),
+        });
+      }
+
+// استدعاء API لرفع الفيديو
+      final response = await dio.post(
         'https://backend-q811.onrender.com/videos/videos',
         data: formData,
         onSendProgress: (sent, total) {
@@ -153,11 +179,12 @@ void onStart(ServiceInstance service) async {
         },
       );
 
-      // إعلام التطبيق بنجاح الرفع
+// إعلام التطبيق بنجاح الرفع
       service.invoke('uploadComplete', {
         'success': true,
         'message': 'تم رفع الفيديو بنجاح',
         'id': data['id'],
+        'video': response.data['video'] // إرسال بيانات الفيديو المرفوع
       });
 
       // تحديث الإشعار بنجاح العملية
@@ -216,8 +243,8 @@ class _VideoManagementScreenState extends State<VideoManagementScreen> {
   String? _videoFileName;
   String? _thumbnailFileName;
 // داخل كلاس _VideoManagementScreenState
-final TextEditingController _externalUrlController = TextEditingController();
-bool _isExternalUrl = false;
+  final TextEditingController _externalUrlController = TextEditingController();
+  bool _isExternalUrl = false;
   @override
   void initState() {
     super.initState();
@@ -268,38 +295,28 @@ bool _isExternalUrl = false;
     });
 
     // استماع لإكمال الرفع
+    // استماع لإكمال الرفع
     FlutterBackgroundService().on('uploadComplete').listen((data) {
       if (data != null && mounted) {
         final id = data['id'];
         final success = data['success'] as bool;
         final message = data['message'] as String;
+        final video = data['video'];
 
         setState(() {
           if (uploadTasks.containsKey(id)) {
             uploadTasks[id]!.isCompleted = true;
             uploadTasks[id]!.status = message;
           }
-        });
 
-        _showSuccessSnackbar(message);
-        _fetchVideos();
-      }
-    });
-
-    // استماع للأخطاء
-    FlutterBackgroundService().on('uploadError').listen((data) {
-      if (data != null && mounted) {
-        final id = data['id'];
-        final error = data['error'] as String;
-
-        setState(() {
-          if (uploadTasks.containsKey(id)) {
-            uploadTasks[id]!.hasError = true;
-            uploadTasks[id]!.status = 'حدث خطأ: $error';
+          // إضافة الفيديو مباشرة إلى القائمة إذا توفر
+          if (video != null) {
+            videos.insert(0, video);
+            filteredVideos.insert(0, video);
           }
         });
 
-        _showErrorSnackbar('حدث خطأ أثناء رفع الفيديو: $error');
+        _showSuccessSnackbar(message);
       }
     });
   }
@@ -456,47 +473,96 @@ bool _isExternalUrl = false;
     };
   }
 
-Future<void> _uploadVideo() async {
-  if (_titleController.text.isEmpty) {
-    _showErrorSnackbar('الرجاء إدخال عنوان الفيديو');
-    return;
+  Future<void> _uploadVideo() async {
+    if (_titleController.text.isEmpty) {
+      _showErrorSnackbar('الرجاء إدخال عنوان الفيديو');
+      return;
+    }
+
+    if (_selectedCategoryId == null) {
+      _showErrorSnackbar('الرجاء اختيار قسم الفيديو');
+      return;
+    }
+
+    if (!_isExternalUrl && _videoFile == null) {
+      _showErrorSnackbar('الرجاء اختيار ملف الفيديو');
+      return;
+    }
+
+    if (_isExternalUrl && _externalUrlController.text.isEmpty) {
+      _showErrorSnackbar('الرجاء إدخال رابط الفيديو الخارجي');
+      return;
+    }
+
+    if (_thumbnailFile == null) {
+      _showErrorSnackbar('الرجاء اختيار صورة مصغرة للفيديو');
+      return;
+    }
+
+    try {
+      setState(() => isLoading = true);
+
+      if (_isExternalUrl) {
+        // حالة الرابط الخارجي - رفع مباشر
+        await _uploadExternalUrlVideo();
+        _showSuccessSnackbar('تم إضافة الفيديو الخارجي بنجاح');
+      } else {
+        // حالة رفع ملف فيديو - استخدام الخدمة الخلفية
+        await _uploadVideoFileInBackground();
+        _showSuccessSnackbar('بدأت عملية رفع الفيديو في الخلفية');
+      }
+
+      _fetchVideos(); // تحديث القائمة فورًا
+      _clearForm();
+    } catch (e) {
+      _showErrorSnackbar('حدث خطأ: ${e.toString()}');
+    } finally {
+      setState(() => isLoading = false);
+    }
   }
 
-  if (_selectedCategoryId == null) {
-    _showErrorSnackbar('الرجاء اختيار قسم الفيديو');
-    return;
+  Future<void> _uploadExternalUrlVideo() async {
+    final dio = Dio();
+    final formData = FormData.fromMap({
+      'title': _titleController.text,
+      'category': _selectedCategoryId,
+      'externalUrl': _externalUrlController.text,
+      'thumbnail': await MultipartFile.fromFile(
+        _thumbnailFile!.path,
+        filename: 'thumbnail.jpg',
+        contentType: MediaType('image', 'jpeg'),
+      ),
+    });
+
+    final response = await dio.post(
+      'https://backend-q811.onrender.com/videos/videos',
+      data: formData,
+    );
+
+    if (response.statusCode != 200 && response.statusCode != 201) {
+      throw Exception('فشل إضافة الفيديو الخارجي: ${response.statusCode}');
+    }
+
+    // إضافة الفيديو المرفوع حديثًا إلى القائمة مباشرةً
+    if (response.data != null && response.data['video'] != null) {
+      setState(() {
+        videos.insert(0, response.data['video']);
+        filteredVideos.insert(0, response.data['video']);
+      });
+    }
   }
 
-  if (!_isExternalUrl && _videoFile == null) {
-    _showErrorSnackbar('الرجاء اختيار ملف الفيديو');
-    return;
-  }
-
-  if (_isExternalUrl && _externalUrlController.text.isEmpty) {
-    _showErrorSnackbar('الرجاء إدخال رابط الفيديو الخارجي');
-    return;
-  }
-
-  if (_thumbnailFile == null) {
-    _showErrorSnackbar('الرجاء اختيار صورة مصغرة للفيديو');
-    return;
-  }
-
-  try {
+  Future<void> _uploadVideoFileInBackground() async {
     final taskId = DateTime.now().millisecondsSinceEpoch.toString();
 
-    // إعداد بيانات الرفع
-    final Map<String, dynamic> uploadData = {
+    final uploadData = {
       'id': taskId,
       'title': _titleController.text,
       'categoryId': _selectedCategoryId,
       'thumbnailPath': (await _prepareThumbnailForUpload())!,
-      'isExternalUrl': _isExternalUrl,
-      if (_isExternalUrl) 'externalUrl': _externalUrlController.text,
-      if (!_isExternalUrl) 'videoPath': (await _prepareVideoForUpload())!,
+      'videoPath': (await _prepareVideoForUpload())!,
     };
 
-    // إنشاء كائن مهمة الرفع
     setState(() {
       uploadTasks[taskId] = UploadTask(
         id: taskId,
@@ -506,51 +572,44 @@ Future<void> _uploadVideo() async {
       );
     });
 
-    // بدء الخدمة الخلفية
     final service = FlutterBackgroundService();
     await service.startService();
     service.invoke('startUpload', uploadData);
-
-    _clearForm();
-    _showSuccessSnackbar('بدأت عملية رفع الفيديو في الخلفية');
-  } catch (e) {
-    _showErrorSnackbar('حدث خطأ أثناء بدء عملية الرفع: $e');
   }
-}
 
 // دالة مساعدة لإعداد الفيديو للرفع
-Future<String?> _prepareVideoForUpload() async {
-  if (_videoFile == null) return null;
-  
-  final appDir = await getApplicationDocumentsDirectory();
-  final uploadDir = Directory('${appDir.path}/uploads');
-  if (!await uploadDir.exists()) {
-    await uploadDir.create(recursive: true);
-  }
+  Future<String?> _prepareVideoForUpload() async {
+    if (_videoFile == null) return null;
 
-  final videoTargetPath = 
-      '${uploadDir.path}/${DateTime.now().millisecondsSinceEpoch}_video${_videoFile!.path.split('.').last}';
-  await _videoFile!.copy(videoTargetPath);
-  
-  return videoTargetPath;
-}
+    final appDir = await getApplicationDocumentsDirectory();
+    final uploadDir = Directory('${appDir.path}/uploads');
+    if (!await uploadDir.exists()) {
+      await uploadDir.create(recursive: true);
+    }
+
+    final videoTargetPath =
+        '${uploadDir.path}/${DateTime.now().millisecondsSinceEpoch}_video${_videoFile!.path.split('.').last}';
+    await _videoFile!.copy(videoTargetPath);
+
+    return videoTargetPath;
+  }
 
 // دالة مساعدة لإعداد الصورة المصغرة للرفع
-Future<String?> _prepareThumbnailForUpload() async {
-  if (_thumbnailFile == null) return null;
-  
-  final appDir = await getApplicationDocumentsDirectory();
-  final uploadDir = Directory('${appDir.path}/uploads');
-  if (!await uploadDir.exists()) {
-    await uploadDir.create(recursive: true);
-  }
+  Future<String?> _prepareThumbnailForUpload() async {
+    if (_thumbnailFile == null) return null;
 
-  final thumbnailTargetPath = 
-      '${uploadDir.path}/${DateTime.now().millisecondsSinceEpoch}_thumbnail${_thumbnailFile!.path.split('.').last}';
-  await _thumbnailFile!.copy(thumbnailTargetPath);
-  
-  return thumbnailTargetPath;
-}
+    final appDir = await getApplicationDocumentsDirectory();
+    final uploadDir = Directory('${appDir.path}/uploads');
+    if (!await uploadDir.exists()) {
+      await uploadDir.create(recursive: true);
+    }
+
+    final thumbnailTargetPath =
+        '${uploadDir.path}/${DateTime.now().millisecondsSinceEpoch}_thumbnail${_thumbnailFile!.path.split('.').last}';
+    await _thumbnailFile!.copy(thumbnailTargetPath);
+
+    return thumbnailTargetPath;
+  }
 
   Future<void> _deleteVideo(String videoId) async {
     try {
@@ -1411,39 +1470,41 @@ Future<String?> _prepareThumbnailForUpload() async {
                       ),
                     ),
                   ),
-                    Row(
-                  children: [
-                    Checkbox(
-                      value: _isExternalUrl,
-                      onChanged: (value) {
-                        setStateDialog(() {
-                          _isExternalUrl = value!;
-                          if (_isExternalUrl) {
-                            _videoFile = null;
-                          }
-                        });
-                      },
-                      activeColor: kSecondaryColor,
-                    ),
-                    const Text('رابط خارجي', style: TextStyle(color: kTextColor)),
-                  ],
-                ),
-
-                if (_isExternalUrl)
-                  TextField(
-                    controller: _externalUrlController,
-                    style: const TextStyle(color: kTextColor),
-                    decoration: const InputDecoration(
-                      labelText: 'رابط الفيديو الخارجي',
-                      labelStyle: TextStyle(color: kSecondaryTextColor),
-                      enabledBorder: UnderlineInputBorder(
-                        borderSide: BorderSide(color: kAccentColor),
+                  Row(
+                    children: [
+                      Checkbox(
+                        value: _isExternalUrl,
+                        onChanged: (value) {
+                          setStateDialog(() {
+                            _isExternalUrl = value!;
+                            if (_isExternalUrl) {
+                              _videoFile = null;
+                            }
+                          });
+                        },
+                        activeColor: kSecondaryColor,
                       ),
-                      focusedBorder: UnderlineInputBorder(
-                        borderSide: BorderSide(color: kSecondaryColor),
-                      ),
-                    ),
+                      const Text('رابط خارجي',
+                          style: TextStyle(color: kTextColor)),
+                    ],
                   ),
+
+                  // في جزء واجهة المستخدم داخل _showAddDialog()
+                  if (_isExternalUrl)
+                    TextField(
+                      controller: _externalUrlController,
+                      style: const TextStyle(color: kTextColor),
+                      decoration: const InputDecoration(
+                        labelText: 'رابط الفيديو الخارجي',
+                        labelStyle: TextStyle(color: kSecondaryTextColor),
+                        enabledBorder: UnderlineInputBorder(
+                          borderSide: BorderSide(color: kAccentColor),
+                        ),
+                        focusedBorder: UnderlineInputBorder(
+                          borderSide: BorderSide(color: kSecondaryColor),
+                        ),
+                      ),
+                    ),
                   const SizedBox(height: 20),
 
                   // اختيار القسم
@@ -1481,62 +1542,66 @@ Future<String?> _prepareThumbnailForUpload() async {
 
                   // اختيار ملف الفيديو
                   if (!_isExternalUrl) ...[
-                  if (_videoFile != null)
-                    Container(
-                      padding: const EdgeInsets.all(10),
-                      decoration: BoxDecoration(
-                        color: kPrimaryColor.withOpacity(0.3),
-                        borderRadius: BorderRadius.circular(8),
-                        border: Border.all(color: kAccentColor.withOpacity(0.5)),
-                      ),
-                      child: Row(
-                        children: [
-                          const Icon(Icons.check_circle, color: Colors.green, size: 20),
-                          const SizedBox(width: 8),
-                          Expanded(
-                            child: Text(
-                              'تم اختيار: ${_videoFile!.path.split('/').last}',
-                              style: const TextStyle(
-                                color: kSecondaryTextColor,
-                                fontSize: 12,
+                    if (_videoFile != null)
+                      Container(
+                        padding: const EdgeInsets.all(10),
+                        decoration: BoxDecoration(
+                          color: kPrimaryColor.withOpacity(0.3),
+                          borderRadius: BorderRadius.circular(8),
+                          border:
+                              Border.all(color: kAccentColor.withOpacity(0.5)),
+                        ),
+                        child: Row(
+                          children: [
+                            const Icon(Icons.check_circle,
+                                color: Colors.green, size: 20),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: Text(
+                                'تم اختيار: ${_videoFile!.path.split('/').last}',
+                                style: const TextStyle(
+                                  color: kSecondaryTextColor,
+                                  fontSize: 12,
+                                ),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
                               ),
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
                             ),
-                          ),
+                          ],
+                        ),
+                      ),
+                    const SizedBox(height: 10),
+                    ElevatedButton(
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: _videoFile != null
+                            ? Colors.green.withOpacity(0.7)
+                            : kSecondaryColor,
+                        foregroundColor: kTextColor,
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 16, vertical: 10),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                      ),
+                      onPressed: () async {
+                        final result = await _pickVideo();
+                        setStateDialog(() {});
+                      },
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(_videoFile != null
+                              ? Icons.check
+                              : Icons.video_file),
+                          const SizedBox(width: 8),
+                          Text(_videoFile != null
+                              ? 'تغيير ملف الفيديو'
+                              : 'اختر ملف الفيديو'),
                         ],
                       ),
                     ),
-                  const SizedBox(height: 10),
-                  ElevatedButton(
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: _videoFile != null
-                          ? Colors.green.withOpacity(0.7)
-                          : kSecondaryColor,
-                      foregroundColor: kTextColor,
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 16, vertical: 10),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                    ),
-                    onPressed: () async {
-                      final result = await _pickVideo();
-                      setStateDialog(() {});
-                    },
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Icon(_videoFile != null ? Icons.check : Icons.video_file),
-                        const SizedBox(width: 8),
-                        Text(_videoFile != null
-                            ? 'تغيير ملف الفيديو'
-                            : 'اختر ملف الفيديو'),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(height: 20),
-                ],
+                    const SizedBox(height: 20),
+                  ],
 
                   // اختيار الصورة المصغرة
                   // جزء من دالة _showAddDialog يتعلق بعرض الصورة المصغرة
@@ -1607,17 +1672,28 @@ Future<String?> _prepareThumbnailForUpload() async {
                 onPressed: () => Navigator.pop(context),
                 child: const Text('إلغاء'),
               ),
-              ElevatedButton(
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: kSecondaryColor,
-                  foregroundColor: kTextColor,
-                ),
-                onPressed: () async {
-                  Navigator.pop(context);
-                  await _uploadVideo();
-                },
-                child: const Text('رفع'),
-              ),
+           ElevatedButton(
+  style: ElevatedButton.styleFrom(
+    backgroundColor: kSecondaryColor,
+    foregroundColor: kTextColor,
+  ),
+  onPressed: isLoading 
+      ? null 
+      : () async {
+          setStateDialog(() => isLoading = true);
+          try {
+            await _uploadVideo();
+            Navigator.pop(context);
+          } catch (e) {
+            _showErrorSnackbar('حدث خطأ: ${e.toString()}');
+          } finally {
+            setStateDialog(() => isLoading = false);
+          }
+        },
+  child: isLoading
+      ? const CircularProgressIndicator(color: kTextColor)
+      : const Text('رفع'),
+)
             ],
           );
         },
